@@ -34,10 +34,18 @@ bld/
 [Ll]ogs/
 
 # Data and Batching
-.batching/
-.data/
+batching/
+data/
+tour/
+*.opt.tour
 *.tsp
 *.batch
+*.lp
+
+# Visual studio solution files
+*.sln
+*.vcxproj
+*.vcxproj.filters
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
