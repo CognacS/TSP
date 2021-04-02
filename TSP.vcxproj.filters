@@ -1,0 +1,434 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>tsp</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\chrono.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\log.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tsp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\error.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\comm_parser.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\file_parser.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tsp_utility.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graph_plot.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cpx_models.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\batch_tool.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\parser.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tsp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\error.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\comm_parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\chrono.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\main.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\file_parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tsp_utility.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graph_plot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\cpx_models.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\batch_tool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="data\att48.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\gr666.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\a280.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\ali535.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\att48.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\att532.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\bayg29.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\bays29.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\berlin52.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\bier127.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\brazil58.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\brd14051.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\brg180.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\burma14.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\ch130.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\ch150.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\d198.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\d493.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\d657.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\d1291.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\d1655.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\d2103.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\d15112.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\d18512.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\dantzig42.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\dsj1000.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\eil51.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\eil76.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\eil101.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\fl417.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\fl1400.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\fl1577.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\fl3795.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\fnl4461.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\fri26.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gil262.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr17.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr21.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr24.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr48.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr96.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr120.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr137.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr202.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr229.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr431.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\gr666.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\hk48.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\kroA100.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\kroA150.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\kroA200.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\kroB100.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\kroB150.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\kroB200.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\kroC100.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\kroD100.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\kroE100.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\lin105.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\lin318.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\linhp318.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\nrw1379.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\p654.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pa561.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pcb442.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pcb1173.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pcb3038.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pla7397.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pla33810.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pla85900.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr76.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr107.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr124.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr136.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr144.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr152.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr226.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr264.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr299.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr439.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr1002.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\pr2392.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rat99.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rat195.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rat575.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rat783.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rd100.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rd400.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rl1304.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rl1323.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rl1889.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rl5915.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rl5934.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\rl11849.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\si175.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\si535.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\si1032.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\st70.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\swiss42.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\ts225.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\tsp225.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\u159.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\u574.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\u724.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\u1060.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\u1432.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\u1817.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\u2152.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\u2319.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\ulysses16.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\ulysses22.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\usa13509.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\vm1084.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="data\tsp\vm1748.tsp">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+</Project>

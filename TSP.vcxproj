@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\batch_tool.c" />
+    <ClCompile Include="src\chrono.c" />
+    <ClCompile Include="src\comm_parser.c" />
+    <ClCompile Include="src\cpx_models.c" />
+    <ClCompile Include="src\error.c" />
+    <ClCompile Include="src\file_parser.c" />
+    <ClCompile Include="src\graph_plot.c" />
+    <ClCompile Include="src\log.c" />
+    <ClCompile Include="src\main.c" />
+    <ClCompile Include="src\parser.c" />
+    <ClCompile Include="src\tsp.c" />
+    <ClCompile Include="src\tsp_utility.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\batch_tool.h" />
+    <ClInclude Include="include\chrono.h" />
+    <ClInclude Include="include\comm_parser.h" />
+    <ClInclude Include="include\cpx_models.h" />
+    <ClInclude Include="include\error.h" />
+    <ClInclude Include="include\file_parser.h" />
+    <ClInclude Include="include\graph_plot.h" />
+    <ClInclude Include="include\parser.h" />
+    <ClInclude Include="include\tsp_utility.h" />
+    <ClInclude Include="include\log.h" />
+    <ClInclude Include="include\main.h" />
+    <ClInclude Include="include\tsp.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="data\att48.tsp" />
+    <None Include="data\gr666.tsp" />
+    <None Include="data\tsp\a280.tsp" />
+    <None Include="data\tsp\ali535.tsp" />
+    <None Include="data\tsp\att48.tsp" />
+    <None Include="data\tsp\att532.tsp" />
+    <None Include="data\tsp\bayg29.tsp" />
+    <None Include="data\tsp\bays29.tsp" />
+    <None Include="data\tsp\berlin52.tsp" />
+    <None Include="data\tsp\bier127.tsp" />
+    <None Include="data\tsp\brazil58.tsp" />
+    <None Include="data\tsp\brd14051.tsp" />
+    <None Include="data\tsp\brg180.tsp" />
+    <None Include="data\tsp\burma14.tsp" />
+    <None Include="data\tsp\ch130.tsp" />
+    <None Include="data\tsp\ch150.tsp" />
+    <None Include="data\tsp\d1291.tsp" />
+    <None Include="data\tsp\d15112.tsp" />
+    <None Include="data\tsp\d1655.tsp" />
+    <None Include="data\tsp\d18512.tsp" />
+    <None Include="data\tsp\d198.tsp" />
+    <None Include="data\tsp\d2103.tsp" />
+    <None Include="data\tsp\d493.tsp" />
+    <None Include="data\tsp\d657.tsp" />
+    <None Include="data\tsp\dantzig42.tsp" />
+    <None Include="data\tsp\dsj1000.tsp" />
+    <None Include="data\tsp\eil101.tsp" />
+    <None Include="data\tsp\eil51.tsp" />
+    <None Include="data\tsp\eil76.tsp" />
+    <None Include="data\tsp\fl1400.tsp" />
+    <None Include="data\tsp\fl1577.tsp" />
+    <None Include="data\tsp\fl3795.tsp" />
+    <None Include="data\tsp\fl417.tsp" />
+    <None Include="data\tsp\fnl4461.tsp" />
+    <None Include="data\tsp\fri26.tsp" />
+    <None Include="data\tsp\gil262.tsp" />
+    <None Include="data\tsp\gr120.tsp" />
+    <None Include="data\tsp\gr137.tsp" />
+    <None Include="data\tsp\gr17.tsp" />
+    <None Include="data\tsp\gr202.tsp" />
+    <None Include="data\tsp\gr21.tsp" />
+    <None Include="data\tsp\gr229.tsp" />
+    <None Include="data\tsp\gr24.tsp" />
+    <None Include="data\tsp\gr431.tsp" />
+    <None Include="data\tsp\gr48.tsp" />
+    <None Include="data\tsp\gr666.tsp" />
+    <None Include="data\tsp\gr96.tsp" />
+    <None Include="data\tsp\hk48.tsp" />
+    <None Include="data\tsp\kroA100.tsp" />
+    <None Include="data\tsp\kroA150.tsp" />
+    <None Include="data\tsp\kroA200.tsp" />
+    <None Include="data\tsp\kroB100.tsp" />
+    <None Include="data\tsp\kroB150.tsp" />
+    <None Include="data\tsp\kroB200.tsp" />
+    <None Include="data\tsp\kroC100.tsp" />
+    <None Include="data\tsp\kroD100.tsp" />
+    <None Include="data\tsp\kroE100.tsp" />
+    <None Include="data\tsp\lin105.tsp" />
+    <None Include="data\tsp\lin318.tsp" />
+    <None Include="data\tsp\linhp318.tsp" />
+    <None Include="data\tsp\nrw1379.tsp" />
+    <None Include="data\tsp\p654.tsp" />
+    <None Include="data\tsp\pa561.tsp" />
+    <None Include="data\tsp\pcb1173.tsp" />
+    <None Include="data\tsp\pcb3038.tsp" />
+    <None Include="data\tsp\pcb442.tsp" />
+    <None Include="data\tsp\pla33810.tsp" />
+    <None Include="data\tsp\pla7397.tsp" />
+    <None Include="data\tsp\pla85900.tsp" />
+    <None Include="data\tsp\pr1002.tsp" />
+    <None Include="data\tsp\pr107.tsp" />
+    <None Include="data\tsp\pr124.tsp" />
+    <None Include="data\tsp\pr136.tsp" />
+    <None Include="data\tsp\pr144.tsp" />
+    <None Include="data\tsp\pr152.tsp" />
+    <None Include="data\tsp\pr226.tsp" />
+    <None Include="data\tsp\pr2392.tsp" />
+    <None Include="data\tsp\pr264.tsp" />
+    <None Include="data\tsp\pr299.tsp" />
+    <None Include="data\tsp\pr439.tsp" />
+    <None Include="data\tsp\pr76.tsp" />
+    <None Include="data\tsp\rat195.tsp" />
+    <None Include="data\tsp\rat575.tsp" />
+    <None Include="data\tsp\rat783.tsp" />
+    <None Include="data\tsp\rat99.tsp" />
+    <None Include="data\tsp\rd100.tsp" />
+    <None Include="data\tsp\rd400.tsp" />
+    <None Include="data\tsp\rl11849.tsp" />
+    <None Include="data\tsp\rl1304.tsp" />
+    <None Include="data\tsp\rl1323.tsp" />
+    <None Include="data\tsp\rl1889.tsp" />
+    <None Include="data\tsp\rl5915.tsp" />
+    <None Include="data\tsp\rl5934.tsp" />
+    <None Include="data\tsp\si1032.tsp" />
+    <None Include="data\tsp\si175.tsp" />
+    <None Include="data\tsp\si535.tsp" />
+    <None Include="data\tsp\st70.tsp" />
+    <None Include="data\tsp\swiss42.tsp" />
+    <None Include="data\tsp\ts225.tsp" />
+    <None Include="data\tsp\tsp225.tsp" />
+    <None Include="data\tsp\u1060.tsp" />
+    <None Include="data\tsp\u1432.tsp" />
+    <None Include="data\tsp\u159.tsp" />
+    <None Include="data\tsp\u1817.tsp" />
+    <None Include="data\tsp\u2152.tsp" />
+    <None Include="data\tsp\u2319.tsp" />
+    <None Include="data\tsp\u574.tsp" />
+    <None Include="data\tsp\u724.tsp" />
+    <None Include="data\tsp\ulysses16.tsp" />
+    <None Include="data\tsp\ulysses22.tsp" />
+    <None Include="data\tsp\usa13509.tsp" />
+    <None Include="data\tsp\vm1084.tsp" />
+    <None Include="data\tsp\vm1748.tsp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{af1bb0ea-c4b3-4c7d-a24b-04ffa58d2238}</ProjectGuid>
+    <RootNamespace>TSP</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);IL_STD</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <CompileAs>CompileAsC</CompileAs>
+      <AdditionalIncludeDirectories>C:\Program Files\IBM\ILOG\CPLEX_Studio201\cplex\include\ilcplex;C:\gnuplot_c\src;</AdditionalIncludeDirectories>
+      <CallingConvention>StdCall</CallingConvention>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Program Files\IBM\ILOG\CPLEX_Studio201\cplex\lib\x64_windows_msvc14\stat_mda;C:\Program Files\IBM\ILOG\CPLEX_Studio201\concert\lib\x64_windows_msvc14\stat_mda;C:\gnuplot_c\src;</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;cplex2010.lib;ilocplex.lib;gnuplot_c.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
