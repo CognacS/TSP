@@ -3,44 +3,61 @@
 #define BATCH_TOOL_H_
 
 #include "tsp.h"
+#include "comm_parser.h"
 
+#define MAX_SIZE_FILE_NAME 100
+#define MAX_SIZE_PARAM_NAME 100
+
+/* ***********************************************************************************
+*						GRID SECTION
+*********************************************************************************** */
+
+// *********** definitions for csv file ***********
 typedef enum
 {
-	MODEL_TYPE,
-	INPUT_FILE
-} gridparamtype;
+	ROWS,
+	COLS,
+	CELL
+} csvaxis;
 
 typedef struct
 {
-	char param_name[100];
-	gridparamtype type;
+	char param_name[MAX_SIZE_PARAM_NAME];
+	csvaxis axis;
 	int values_num;
 	char** labels;
-	void** values;
+	char** values;
 
 } gridparam;
 
 typedef struct
 {
+	int end_reached;
 	int params_num;
-	int* coords;
-	gridparam* params;
-	int* out_file_is_row;
+	int* indices;
+	gridparam* grid_params;
 } grid;
+
+/* ***********************************************************************************
+*						BATCH TOOL SECTION
+*********************************************************************************** */
 
 typedef struct
 {
 
-	char* input_file;
-	char* log_file;
+	char input_file[MAX_SIZE_FILE_NAME];
+	char log_file[MAX_SIZE_FILE_NAME];
 
 	grid p_grid;
 
 } batchtool;
 
+void print_batchtool(batchtool* bt);
 
-void tostring_batchtool(batchtool* bt);
-int next(grid* p_grid, instance* inst);
+void restart_grid(grid* p_grid);
+void print_grid(grid* p_grid);
+int next_args_config(grid* p_grid, char** new_argv);
+int next_inst_config(grid* p_grid, instance* inst);
 
 void free_gridparam(gridparam* params);
 void free_grid(grid* p_grid);

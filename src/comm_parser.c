@@ -9,18 +9,9 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	// define the parameters for the instance
 	graph* g = &inst->inst_graph;
 	params* p = &inst->inst_params;
-
-	// ************ DEFAULT PARAMETERS DEFINITION ************
-	g->integer_costs = DEF_INTEGER_COSTS;
-	p->model_type = DEF_MODEL_TYPE;
-	strcpy(p->input_file, DEF_INPUT_FILE);
-	p->timelimit = DEF_TIMELIMIT;
-	p->randomseed = DEF_RANDOMSEED;
-	p->max_nodes = DEF_MAX_NODES;
-	// *******************************************************
     
 	int help = 0; if (argc < 1) help = 1;
-	strings_iterator* iter = build_cmdline_iter(argc - 1, argv + 1);
+	strings_iterator* iter = build_cmdline_iter(argc, argv);
 
 	tokenswitch(iter)
 	{
@@ -45,7 +36,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		{
 			g->integer_costs = 1;
 		}
-		tokencase_1("-seed", seed_str)
+		tokencase_1("-seed|-random_seed", seed_str)
 		{
 			p->randomseed = atoi(seed_str);
 		}
@@ -56,6 +47,10 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		tokencase_1("-cutoff", co_str)
 		{
 			p->cutoff = atoi(co_str);
+		}
+		tokencase_1("-batch|-batchfile|-bf", batchfile)
+		{
+			strcpy(p->batch_file, batchfile);
 		}
 		tokenfinally(arg)
 		{

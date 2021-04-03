@@ -60,5 +60,8 @@ void print_error(char* addline, int error_type);
 #define calloc_s(ARRAY, SIZE, TYPE) \
 if (!(ARRAY = (TYPE*)calloc((SIZE), sizeof(TYPE)))) print_error(#ARRAY, ERR_NO_MEM_FOR_ALLOC)
 
+#define malloc_s(STRUCT, TYPE) \
+if (!(STRUCT = (TYPE*)malloc(sizeof(TYPE)))) print_error(#STRUCT, ERR_NO_MEM_FOR_ALLOC)
+
 
 #endif

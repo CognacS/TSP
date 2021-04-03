@@ -100,6 +100,28 @@ int TSPopt(instance* inst, double** xstar_ptr)
 
 }
 
+void fill_inst_default(instance* inst)
+{
+	// define the parameters for the instance
+	graph* g = &inst->inst_graph;
+	params* p = &inst->inst_params;
+
+	// ************ DEFAULT PARAMETERS DEFINITION ************
+	g->integer_costs = DEF_INTEGER_COSTS;
+	g->xcoord = NULL;
+	g->ycoord = NULL;
+	g->tr_xcoord = NULL;
+	g->tr_ycoord = NULL;
+	p->model_type = DEF_MODEL_TYPE;
+	strcpy(p->input_file, DEF_INPUT_FILE);
+	strcpy(p->batch_file, DEF_BATCH_FILE);
+	p->timelimit = DEF_TIMELIMIT;
+	p->randomseed = DEF_RANDOMSEED;
+	p->max_nodes = DEF_MAX_NODES;
+	// *******************************************************
+	
+}
+
 
 /* ***************************************************************************************************
 *						DATASTRUCTURES TOSTRING FUNCTIONS
@@ -124,12 +146,14 @@ void tostring_params(char* buffer, params* inst_p)
 		"\tmodel_type = %d\n"
 		"\ttimelimit  = %f\n"
 		"\tinput_file = %s\n"
+		"\tbatch_file = %s\n"
 		"\trandomseed = %d\n"
 		"\tcutoff = %f\n"
 		"\tmax_nodes = %d\n",
 		inst_p->model_type,
 		inst_p->timelimit,
 		inst_p->input_file,
+		inst_p->batch_file,
 		inst_p->randomseed,
 		inst_p->cutoff,
 		inst_p->max_nodes

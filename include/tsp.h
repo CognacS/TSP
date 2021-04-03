@@ -11,6 +11,7 @@
 
 #include <cplex.h>
 
+
 /* ***********************************************************************************
 *						GENERAL CONSTANTS
 *********************************************************************************** */
@@ -63,7 +64,8 @@ typedef struct {
 #define DEF_MODEL_TYPE 0
 #define DEF_RANDOMSEED 123456
 #define DEF_TIMELIMIT CPX_INFBOUND
-#define DEF_INPUT_FILE "NULL"
+#define DEF_INPUT_FILE ""
+#define DEF_BATCH_FILE ""
 #define DEF_MAX_NODES -1
 #define DEF_CUTOFF 0
 
@@ -90,7 +92,8 @@ typedef struct {
 	modeltype model_type;					// criteria for method selection based on the model type
 	int randomseed;							// seed for RNG of CPlex
 	double timelimit;						// overall time limit, in sec.s
-	char input_file[1000];		  			// input file
+	char input_file[100];		  			// input file
+	char batch_file[100];		  			// batch file for instance runs automatization
 	int max_nodes; 							// max n. of branching nodes in the final run (-1 unlimited)
 	double cutoff; 							// cutoff (upper bound) for master
 
@@ -124,6 +127,7 @@ typedef struct {
 /* ***********************************************************************************
 *						INSTANCE DEFINITION AND FUNCTIONS
 *********************************************************************************** */
+
 /**
 * Define the instance as a graph, its parameters, its global data and the model
 */
@@ -147,6 +151,9 @@ void tostring_params		(char* buffer, params* inst_p);
 void tostring_global_data	(char* buffer, global_data* inst_global);
 void tostring_model			(char* buffer, model* inst_model);
 void tostring_instance		(char* buffer, instance* inst);
+
+// fill an instance with default values
+void fill_inst_default(instance* inst);
 
 // free functions for destruction
 void free_graph		(graph* inst_graph);

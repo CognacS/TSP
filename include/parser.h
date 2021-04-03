@@ -31,28 +31,13 @@ int next_value_cmdline(void* ds, char* out_buffer, int section);
 // constructor
 strings_iterator* build_cmdline_iter(int argc, char** argv);
 
-// *********** definitions for tsp-like file ***********
-#define TOKEN_SECTION 0
-#define COORD_SECTION 1
-
-typedef struct
-{
-    FILE* fp;
-    char line[180];
-    char* pos;
-} datasource_tsplike;
-
-int next_arg_tsplike(void* ds, char* out_buffer, int section);
-int next_value_tsplike(void* ds, char* out_buffer, int section);
-// constructor
-strings_iterator* build_tsplike_iter(FILE* fin);
-
 
 // common functions
 void free_iter(strings_iterator* iter);
 
 // parse an input string with a simple regex with OR options divided by "|"
 int parsestr(char* in_str, char* format);
+char* strsep(char** stringp, const char* delim);
 
 
 #define ANY_STR ""
