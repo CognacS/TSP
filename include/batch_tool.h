@@ -2,7 +2,7 @@
 
 #define BATCH_TOOL_H_
 
-#include "tsp.h"
+#include "tsp_data.h"
 #include "comm_parser.h"
 
 #define MAX_SIZE_FILE_NAME 100
@@ -52,10 +52,10 @@ typedef struct
 
 } batchtool;
 
+void print_grid(grid* p_grid);
 void print_batchtool(batchtool* bt);
 
 void restart_grid(grid* p_grid);
-void print_grid(grid* p_grid);
 int next_args_config(grid* p_grid, char** new_argv);
 int next_inst_config(grid* p_grid, instance* inst);
 

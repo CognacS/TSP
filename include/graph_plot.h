@@ -2,7 +2,7 @@
 
 #define GRAPH_PLOT_H_
 
-#include "tsp.h"
+#include "tsp_data.h"
 #include "tsp_utility.h"
 
 #include <gnuplot_c.h>

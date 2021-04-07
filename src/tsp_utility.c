@@ -143,31 +143,65 @@ void log_datastruct(void* object, int type, int runlvl, int loglvl)
 {
 	if (runlvl >= loglvl)
 	{
-		char line[8000];
 		switch (type)
 		{
 		case TYPE_GRAPH:
-			tostring_graph(line, (graph*) object);
-			log_line(runlvl, loglvl, line);
+			print_graph((graph*) object);
 			break;
 		case TYPE_PARAM:
-			tostring_params(line, (params*)object);
-			log_line(runlvl, loglvl, line);
+			print_params((params*)object);
 			break;
 		case TYPE_GLOB:
-			tostring_global_data(line, (global_data*)object);
-			log_line(runlvl, loglvl, line);
+			print_global_data((global_data*)object);
 			break;
 		case TYPE_MODEL:
-			tostring_model(line, (model*)object);
-			log_line(runlvl, loglvl, line);
+			print_model((model*)object);
 			break;
 		case TYPE_INST:
-			tostring_instance(line, (instance*)object);
-			log_line(runlvl, loglvl, line);
+			print_instance((instance*)object);
 			break;
 		default:
 			print_warn(NULL, WARN_WRONG_DATASTRUCT);
+		}
+	}
+}
+
+void print_directed_sol(graph* g, double* xstar)
+{
+	int curr_node = 0;
+	for (int i = 0; i < g->nnodes; i++)
+	{
+		for (int j = 0; j < g->nnodes; j++)
+		{
+			if (curr_node == j) continue;
+			// test if value is 0 or 1
+			if (is_one(xstar[xxpos(curr_node, j, g->nnodes)]))
+			{
+				log_line_ext(VERBOSITY, LOGLVL_MSG, "%d -> %d with dist %f", curr_node + 1, j + 1, dist(curr_node, j, g));
+				curr_node = j;
+				break;
+			}
+		}
+	}
+}
+
+void print_undirected_sol(graph* g, double* xstar)
+{
+	int curr_node = 0;
+	int prev_node = 0;
+	for (int i = 0; i < g->nnodes; i++)
+	{
+		for (int j = 0; j < g->nnodes; j++)
+		{
+			if (curr_node == j || prev_node == j) continue;
+			// test if value is 0 or 1
+			if (is_one(xstar[xpos(curr_node, j, g->nnodes)]))
+			{
+				log_line_ext(VERBOSITY, LOGLVL_MSG, "%d <-> %d with dist %f", curr_node + 1, j + 1, dist(curr_node, j, g));
+				prev_node = curr_node;
+				curr_node = j;
+				break;
+			}
 		}
 	}
 }

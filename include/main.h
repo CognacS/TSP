@@ -9,6 +9,5 @@
 #include "comm_parser.h"
 #include "file_parser.h"
 #include "graph_plot.h"
-#include "parser.h"
 
 #endif // !MAIN_H_

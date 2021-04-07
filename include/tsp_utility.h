@@ -5,7 +5,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-#include "tsp.h"
+#include "tsp_data.h"
 #include "log.h"
 #include "error.h"
 
@@ -46,6 +46,10 @@ int is_one(double num);
 
 // log datastructure function
 void log_datastruct(void* object, int type, int runlvl, int loglvl);
+
+// print solutions
+void print_directed_sol(graph* g, double* xstar);
+void print_undirected_sol(graph* g, double* xstar);
 
 
 #endif

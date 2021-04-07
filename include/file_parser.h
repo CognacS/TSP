@@ -2,7 +2,7 @@
 
 #define FILE_PARSER_H_
 
-#include "tsp.h"
+#include "tsp_data.h"
 #include "log.h"
 #include "error.h"
 #include "parser.h"
