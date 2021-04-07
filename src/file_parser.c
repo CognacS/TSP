@@ -185,7 +185,7 @@ void read_batchfile(batchtool* bt)
 			{
 				set_section(BATCH_PARAM_SECTION);
 			}
-			tokencase_n(ANY_STR, 1, value)
+			tokencase_1(ANY_STR, value)
 			{
 				if (values_counter >= active_param->values_num) print_error("out of bound for number of values in parameter", ERR_INPUT_FORMAT);
 

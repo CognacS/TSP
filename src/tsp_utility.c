@@ -13,7 +13,6 @@ void coord_transform(graph* g)
 	}
 }
 
-
 void geo_transform(graph* g)
 {
 	// allocate arrays

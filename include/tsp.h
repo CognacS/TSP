@@ -69,19 +69,31 @@ typedef struct {
 #define DEF_MAX_NODES -1
 #define DEF_CUTOFF 0
 
+// tree of implemented models
+#define TSP_ASYMM 1
+#define	AS_MTZ 1
+#define	AS_GG	2
+#define TSP_SYMM 2
+#define	SY_BEND 1
+
 /**
-* Type xy of model to be solved, where:
-* x = model specification
-* y = variant of the specification
+* Type xyz of model to be solved, where:
+* x = TSP problem variant
+* y = model specification (archetype) for the proposed TSP problem
+* z = variant of the specification
 */
 typedef enum
 {
-	MTZ_S = 10,		// MTZ static constraints
-	MTZ_L = 11,		// MTZ lazy constraints
-	MTZ_STE = 12,	// MTZ subtour elimination constraints
-	GG = 20			// GG
+	MTZ_S = 110,		// MTZ static constraints
+	MTZ_L = 111,		// MTZ lazy constraints
+	MTZ_STE = 112,	// MTZ subtour elimination constraints
+	GG = 120,			// GG
+	BEND = 210			// Benders' method
 } modeltype;
 
+
+inline int model_tsptype(modeltype mt) { return (int)(mt / 100) % 10; }
+inline int model_archetype(modeltype mt) { return (int)(mt / 10) % 10; }
 inline int model_variant(modeltype mt) { return mt % 10; }
 
 /**
@@ -144,6 +156,10 @@ typedef struct {
 #include "error.h"
 #include "tsp_utility.h"
 #include "cpx_models.h"
+
+// print solutions
+void print_directed_sol		(graph* g, double* xstar);
+void print_undirected_sol	(graph* g, double* xstar);
 
 // to string functions for printing purpuses
 void tostring_graph			(char* buffer, graph* inst_graph);

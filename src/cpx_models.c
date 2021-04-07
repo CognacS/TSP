@@ -61,6 +61,166 @@ void build_model_base_undirected(graph* g, modeltype mt, CPXENVptr env, CPXLPptr
 }
 
 /* **************************************************************************************************
+*						SOLUTION USING BENDERS' METHOD
+************************************************************************************************** */
+void solve_benders(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
+{
+	int error;
+
+	// build naive model
+	build_model_base_undirected(g, mt, env, lp);
+	int ncols = CPXgetnumcols(env, lp);
+
+	// build solution array
+	double* xstar = NULL;
+	calloc_s(xstar, ncols, double);
+	// allocate auxiliary data structures
+	int* succ = NULL, *comp = NULL;
+	calloc_s(succ, g->nnodes, int);
+	calloc_s(comp, g->nnodes, int);
+	int ncomp = 0;
+
+
+	// solve model and get solution xstar
+	if (error = CPXmipopt(env, lp))
+	{
+		printf("CPX error %d\n", error);
+		print_error("CPXmipopt() Benders", ERR_CPLEX);
+	}
+	if (error = CPXgetx(env, lp, xstar, 0, ncols - 1))
+	{
+		printf("CPX error %d\n", error);
+		print_error("CPXgetx() Benders", ERR_CPLEX);
+	}
+
+	int* rowlist = NULL;
+	int* collist = NULL;
+	double* vallist = NULL;
+
+	double* rhs = NULL;
+	char* sense = NULL;
+	char** rowname = NULL;
+	int* compsizes = NULL;
+	char* visited = NULL;
+
+	// while the solution has subtours
+	while (find_conncomps_dfs(g, xstar, succ, comp, &ncomp) > 1)
+	{
+		// ******************************* PREPARE ROWS ******************************
+		int nrows = CPXgetnumrows(env, lp);
+		// allocate current rhs and sense
+		calloc_s(rhs, ncomp, double);
+		calloc_s(sense, ncomp, char);
+		calloc_s(rowname, ncomp, char*);
+		// get component sizes
+		int tot_coeff_num = 0;
+		calloc_s(compsizes, ncomp, int);
+		for (int i = 0; i < g->nnodes; i++) compsizes[comp[i]]++;
+		// get total number of coefficients as the number of all the edges in all subtours
+		for (int row = 0; row < ncomp; row++) tot_coeff_num += compsizes[row] * (compsizes[row] - 1) / 2;
+		// setup rhs, sense and rowname
+		for (int row = 0; row < ncomp; row++)
+		{
+			rhs[row] = compsizes[row]-1;
+			sense[row] = 'L';
+			calloc_s(rowname[row], 30, char);
+			sprintf(rowname[row], "SEC(%d)", nrows + row+1);
+		}
+
+		// ****************************** PREPARE COEFFS *****************************
+		// allocate the coefficients arrays
+		calloc_s(rowlist, tot_coeff_num, int);
+		calloc_s(collist, tot_coeff_num, int);
+		calloc_s(vallist, tot_coeff_num, double);
+		int arr_idx = 0;
+		calloc_s(visited, g->nnodes, char);
+		// for node, prepare its values
+		for (int i = 0; i < g->nnodes; i++)
+		{
+			// iterate over the subtour to add constraints
+			for (int j = succ[i]; j != i; j = succ[j])
+			{
+				if (!visited[j])
+				{
+					// set values for element x_ij
+					rowlist[arr_idx] = nrows + comp[i];
+					collist[arr_idx] = xpos(i, j, g->nnodes);
+					vallist[arr_idx] = 1.0;
+					arr_idx++;
+				}
+			}
+			visited[i] = 1;
+		}
+
+		// **************************** CREATE CONSTRAINTS ***************************
+		// create empty rows (1 for each conn component)
+		if (CPXnewrows(env, lp, ncomp, rhs, sense, NULL, rowname)) print_error("wrong CPXnewrows [SEC]", ERR_CPLEX);
+		// fill coefficients (1 for each node)
+		if (error = CPXchgcoeflist(env, lp, tot_coeff_num, rowlist, collist, vallist))
+		{
+			printf("CPX error %d\n", error);
+			print_error("wrong CPXchgcoeflist [SEC]", ERR_CPLEX);
+		}
+		log_line_ext(VERBOSITY, LOGLVL_INFO, "Added %d SE constraints with %d coefficients", ncomp, tot_coeff_num);
+
+		// ********************************* CLEANUP *********************************
+		// free names
+		for (int row = 0; row < ncomp; row++) free(rowname[row]);
+		// free arrays for rows
+		free(rhs);
+		free(sense);
+		free(rowname);
+		// free arrays for coeffs
+		free(rowlist);
+		free(collist);
+		free(vallist);
+
+		// ************************* SOLVE MODEL WITH NEW SEC ************************
+		// solve model and get solution xstar
+		if (error = CPXmipopt(env, lp))
+		{
+			printf("CPX error %d\n", error);
+			print_error("CPXmipopt() Benders", ERR_CPLEX);
+		}
+		if (error = CPXgetx(env, lp, xstar, 0, ncols - 1))
+		{
+			printf("CPX error %d\n", error);
+			print_error("CPXgetx() Benders", ERR_CPLEX);
+		}
+	}
+
+
+	// ********** FINAL CLEANUP **********
+	// free solution
+	free(xstar);
+	// free auxiliary data structures
+	free(succ);
+	free(comp);
+	// ***********************************
+
+}
+
+/* **************************************************************************************************
+*						SOLUTION USING UNDIRECTED GRAPHS MODELS
+************************************************************************************************** */
+void solve_symmetric_tsp(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
+{
+	// if the tsptype of the model is not asymmetric, throw error
+	if (model_tsptype(mt) != TSP_SYMM) print_error("", ERR_WRONG_TSP_PROCEDURE);
+
+	// build symmetric TSP model OR use symmetric TSP procedure
+	switch (model_archetype(mt))
+	{
+	case SY_BEND:
+		solve_benders(g, mt, env, lp);
+		break;
+	default:
+		print_error("symmetric variant", ERR_MODEL_NOT_IMPL);
+	}
+}
+
+
+/* **************************************************************************************************
 *						BASE MODEL FOR DIRECTED GRAPHS
 ************************************************************************************************** */
 void build_model_base_directed(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
@@ -340,5 +500,36 @@ void build_model_gg(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 
 	free(index_flow);
 	free(value_flow);
+
+}
+
+/* **************************************************************************************************
+*						SOLUTION USING DIRECTED GRAPHS MODELS
+************************************************************************************************** */
+void solve_asymmetric_tsp(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
+{
+	// if the tsptype of the model is not asymmetric, throw error
+	if (model_tsptype(mt) != TSP_ASYMM) print_error("", ERR_WRONG_TSP_PROCEDURE);
+
+	// build asymmetric TSP model
+	switch (model_archetype(mt))
+	{
+	case AS_MTZ:
+		build_model_mtz(g, mt, env, lp);
+		break;
+	case AS_GG:
+		build_model_gg(g, mt, env, lp);
+		break;
+	default:
+		print_error("asymmetric variant", ERR_MODEL_NOT_IMPL);
+	}
+
+	// solve the model
+	int error = 0;
+	if (error = CPXmipopt(env, lp))
+	{
+		printf("CPX error %d\n", error);
+		print_error("CPXmipopt() Asymmetric", ERR_CPLEX);
+	}
 
 }

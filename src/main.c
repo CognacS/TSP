@@ -49,7 +49,18 @@ int main(int argc, char **argv)
 
 		log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] TSP problem solved in %lf sec.s\n", t2 - t1);
 
-		plot_tsp_solution_directed(&inst.inst_graph, xstar);
+		switch (model_tsptype(inst.inst_params.model_type))
+		{
+		case TSP_ASYMM:
+			print_directed_sol(&inst.inst_graph, xstar);
+			plot_tsp_solution_directed(&inst.inst_graph, xstar);
+			break;
+		case TSP_SYMM:
+			print_undirected_sol(&inst.inst_graph, xstar);
+			plot_tsp_solution_undirected(&inst.inst_graph, xstar);
+			break;
+		}
+		
 
 		// free solution
 		free(xstar);

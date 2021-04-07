@@ -19,35 +19,26 @@ int TSPopt(instance* inst, double** xstar_ptr)
 	CPXsetintparam(env, CPX_PARAM_RANDOMSEED, p->randomseed);
 	CPXsetintparam(env, CPX_PARAM_TILIM, p->timelimit);
 	CPXsetintparam(env, CPX_PARAM_NODELIM, p->max_nodes);
-	//CPXsetdblparam(env, CPX_PARAM_EPGAP, 0.01);
-	//CPXsetdblparam(env, CPX_PARAM_EPINT, 0);
-	//CPXsetdblparam(env, CPX_PARAM_EPGAP, 0.01);
+	CPXsetdblparam(env, CPX_PARAM_EPGAP, 0.00001);
+	CPXsetdblparam(env, CPX_PARAM_EPINT, 0.0);
 
 	// apply transformation to coordinates if required
 	coord_transform(g);
 
-	// build TSP model
-	switch (p->model_type)
+	// ************************ OPTIMIZATION ************************
+	switch (model_tsptype(p->model_type))
 	{
-	case MTZ_S:
-	case MTZ_L:
-	case MTZ_STE:
-		build_model_mtz(g, p->model_type, env, lp);
+	case TSP_ASYMM:
+		solve_asymmetric_tsp(g, p->model_type, env, lp);
 		break;
-	case GG:
-		build_model_gg(g, p->model_type, env, lp);
+	case TSP_SYMM:
+		solve_symmetric_tsp(g, p->model_type, env, lp);
 		break;
+	default:
+		print_error("TSP variant", ERR_MODEL_NOT_IMPL);
 	}
 
 	if (VERBOSITY >= LOGLVL_INFO) CPXwriteprob(env, lp, "model.lp", NULL);
-
-	// ************************ OPTIMIZATION ************************
-
-	if (error = CPXmipopt(env, lp))
-	{
-		printf("CPX error %d\n", error);
-		print_error("CPXmipopt()", ERR_CPLEX);
-	}
 
 	// ************************ USE SOLUTION ************************
 	int nnodes = inst->inst_graph.nnodes;
@@ -63,32 +54,17 @@ int TSPopt(instance* inst, double** xstar_ptr)
 		print_error("CPXgetx()", ERR_CPLEX);
 	}
 
-	double bestobjvalue = 0;
-	CPXgetbestobjval(env, lp, &bestobjvalue);
+	double objvalue = 0;
+	CPXgetobjval(env, lp, &objvalue);
 	if (error = CPXgetx(env, lp, xstar, 0, ncols - 1))
 	{
 		printf("CPX error %d\n", error);
-		print_error("CPXgetbestobjval()", ERR_CPLEX);
+		print_error("CPXgetobjval()", ERR_CPLEX);
 	}
-	printf("Best objective value = %f\n", bestobjvalue);
+	printf("Final objective value = %f\n", objvalue);
 
 	// iterate through all variables
 	
-	int curr_node = 0;
-	for (int i = 0; i < nnodes; i++)
-	{
-		for (int j = 0; j < nnodes; j++)
-		{
-			if (curr_node == j) continue;
-			// test if value is 0 or 1
-			if (is_one(xstar[xxpos(curr_node, j, nnodes)]))
-			{
-				log_line_ext(VERBOSITY, LOGLVL_MSG, "%d -> %d with dist %f", curr_node + 1, j + 1, dist(curr_node, j, g));
-				curr_node = j;
-				break;
-			}
-		}
-	}
 
 	// ************************ CLEAN-UP ************************
 
@@ -203,4 +179,45 @@ void free_graph(graph* inst_graph)
 void free_instance(instance* inst)
 {
 	free_graph(&inst->inst_graph);
+}
+
+
+void print_directed_sol(graph* g, double* xstar)
+{
+	int curr_node = 0;
+	for (int i = 0; i < g->nnodes; i++)
+	{
+		for (int j = 0; j < g->nnodes; j++)
+		{
+			if (curr_node == j) continue;
+			// test if value is 0 or 1
+			if (is_one(xstar[xxpos(curr_node, j, g->nnodes)]))
+			{
+				log_line_ext(VERBOSITY, LOGLVL_MSG, "%d -> %d with dist %f", curr_node + 1, j + 1, dist(curr_node, j, g));
+				curr_node = j;
+				break;
+			}
+		}
+	}
+}
+
+void print_undirected_sol(graph* g, double* xstar)
+{
+	int curr_node = 0;
+	int prev_node = 0;
+	for (int i = 0; i < g->nnodes; i++)
+	{
+		for (int j = 0; j < g->nnodes; j++)
+		{
+			if (curr_node == j || prev_node == j) continue;
+			// test if value is 0 or 1
+			if (is_one(xstar[xpos(curr_node, j, g->nnodes)]))
+			{
+				log_line_ext(VERBOSITY, LOGLVL_MSG, "%d <-> %d with dist %f", curr_node + 1, j + 1, dist(curr_node, j, g));
+				prev_node = curr_node;
+				curr_node = j;
+				break;
+			}
+		}
+	}
 }

@@ -27,6 +27,9 @@
 #define ERR_INCORRECT_FUNCTION	9
 #define ERR_INPUT_VALUES		10
 #define ERR_NO_MEM_FOR_ALLOC	11
+// models errors
+#define ERR_WRONG_TSP_PROCEDURE	12
+#define ERR_MODEL_NOT_IMPL		13
 
 // *************** define warnings ***************
 #define WARN_WRONG_DATASTRUCT			0	// unknown data structure (inst, graph, etc...)
@@ -45,7 +48,9 @@ static const char* const error_msgs[] =
 	"CPX error: ",
 	"function error: ",
 	"input values error: ",
-	"NULL pointer returned when allocating array: "
+	"NULL pointer returned when allocating array: ",
+	"wrong TSP solver procedure used for TSP variant",
+	"the requested model was not implemented: "
 };
 
 static const char* const warn_msgs[] =
