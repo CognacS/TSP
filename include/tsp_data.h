@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cplex.h>
 
 
 /* ***********************************************************************************
@@ -62,7 +63,7 @@ typedef struct {
 #define DEF_INPUT_FILE ""
 #define DEF_BATCH_FILE ""
 #define DEF_MAX_NODES -1
-#define DEF_CUTOFF 0
+#define DEF_CUTOFF 1e-3
 
 // tree of implemented models
 #define TSP_ASYMM 1
@@ -109,13 +110,19 @@ typedef struct {
 /* ***********************************************************************************
 *						INSTANCE GLOBAL DATA SECTION
 *********************************************************************************** */
+#define DEF_XSTAR NULL
 
 /**
 * Define the global data to be shared during optimization
 */
 typedef struct {
 
-	double z_best;							// best solution values
+	double tstart;		// time from start of the optimization procedure
+	double texec;		// time of execution updated during optimization
+
+	double* xstar;		// best solution available
+	double zbest;		// obj value of the best integer solution
+	double lbbest;		// lower bound of the best solution
 
 } global_data;
 
@@ -158,7 +165,8 @@ void print_instance		(instance* inst);
 void fill_inst_default(instance* inst);
 
 // free functions for destruction
-void free_graph		(graph* inst_graph);
-void free_instance	(instance* inst);
+void free_graph			(graph* inst_graph);
+void free_global_data	(global_data* inst_global);
+void free_instance		(instance* inst);
 
 #endif   /* TSP_DATA_H_ */ 

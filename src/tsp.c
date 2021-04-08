@@ -4,7 +4,7 @@
 *						TSP OPTIMIZATION PROCEDURE
 *************************************************************************************************** */
 // optimization functions
-int TSPopt(instance* inst, double** xstar_ptr)
+int TSPopt(instance* inst)
 {
 
 	// *************************** SETUP ***************************
@@ -19,7 +19,7 @@ int TSPopt(instance* inst, double** xstar_ptr)
 	CPXsetintparam(env, CPX_PARAM_RANDOMSEED, p->randomseed);
 	CPXsetintparam(env, CPX_PARAM_TILIM, (int)p->timelimit);
 	CPXsetintparam(env, CPX_PARAM_NODELIM, p->max_nodes);
-	CPXsetdblparam(env, CPX_PARAM_EPGAP, 0.00001);
+	CPXsetdblparam(env, CPX_PARAM_EPGAP, p->cutoff);
 	CPXsetdblparam(env, CPX_PARAM_EPINT, 0.0);
 
 	// apply transformation to coordinates if required
@@ -43,27 +43,31 @@ int TSPopt(instance* inst, double** xstar_ptr)
 	// ************************ USE SOLUTION ************************
 	int nnodes = inst->inst_graph.nnodes;
 	int ncols = CPXgetnumcols(env, lp);
+	global_data* gd = &inst->inst_global_data;
 
 	// get the optimal solution
-	double* xstar = 0;
-	if (!(xstar = (double*)calloc(ncols, sizeof(double)))) print_error("xstar", ERR_NO_MEM_FOR_ALLOC);
-	*xstar_ptr = xstar;
-	if (error = CPXgetx(env, lp, xstar, 0, ncols - 1))
+	if (gd->xstar != NULL) free(gd->xstar);
+	calloc_s(gd->xstar, ncols, double);
+	if (error = CPXgetx(env, lp, gd->xstar, 0, ncols - 1))
 	{
 		printf("CPX error %d\n", error);
 		print_error("CPXgetx()", ERR_CPLEX);
 	}
 
-	double objvalue = 0;
-	CPXgetobjval(env, lp, &objvalue);
-	if (error = CPXgetx(env, lp, xstar, 0, ncols - 1))
+	// get the obj value
+	if (error = CPXgetobjval(env, lp, &gd->zbest))
 	{
 		printf("CPX error %d\n", error);
 		print_error("CPXgetobjval()", ERR_CPLEX);
 	}
-	printf("Final objective value = %f\n", objvalue);
+	printf("Final objective value = %f\n", gd->zbest);
 
-	// iterate through all variables
+	// get the lower bound
+	if (error = CPXgetbestobjval(env, lp, &gd->lbbest))
+	{
+		printf("CPX error %d\n", error);
+		print_error("CPXgetobjval()", ERR_CPLEX);
+	}
 
 
 	// ************************ CLEAN-UP ************************
@@ -73,27 +77,5 @@ int TSPopt(instance* inst, double** xstar_ptr)
 	CPXcloseCPLEX(&env);
 
 	return 0; // or an appropriate nonzero error code
-
-}
-
-void fill_inst_default(instance* inst)
-{
-	// define the parameters for the instance
-	graph* g = &inst->inst_graph;
-	params* p = &inst->inst_params;
-
-	// ************ DEFAULT PARAMETERS DEFINITION ************
-	g->integer_costs = DEF_INTEGER_COSTS;
-	g->xcoord = NULL;
-	g->ycoord = NULL;
-	g->tr_xcoord = NULL;
-	g->tr_ycoord = NULL;
-	p->model_type = DEF_MODEL_TYPE;
-	strcpy(p->input_file, DEF_INPUT_FILE);
-	strcpy(p->batch_file, DEF_BATCH_FILE);
-	p->timelimit = DEF_TIMELIMIT;
-	p->randomseed = DEF_RANDOMSEED;
-	p->max_nodes = DEF_MAX_NODES;
-	// *******************************************************
 
 }

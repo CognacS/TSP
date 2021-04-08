@@ -212,8 +212,6 @@ void read_batchfile(batchtool* bt)
 
 	fclose(fin);
 
-	print_batchtool(bt);
-
 }
 
 

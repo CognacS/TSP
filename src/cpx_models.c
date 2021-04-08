@@ -80,7 +80,6 @@ void solve_benders(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 	calloc_s(comp, g->nnodes, int);
 	int ncomp = 0;
 
-
 	// solve model and get solution xstar
 	if (error = CPXmipopt(env, lp))
 	{
@@ -93,13 +92,17 @@ void solve_benders(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 		print_error("CPXgetx() Benders", ERR_CPLEX);
 	}
 
+	// arrays for rows
+	double* rhs = NULL;
+	char* sense = NULL;
+	char** rowname = NULL;
+
+	// arrays for coefficients
 	int* rowlist = NULL;
 	int* collist = NULL;
 	double* vallist = NULL;
 
-	double* rhs = NULL;
-	char* sense = NULL;
-	char** rowname = NULL;
+	// auxiliary arrays
 	int* compsizes = NULL;
 	char* visited = NULL;
 
@@ -108,16 +111,16 @@ void solve_benders(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 	{
 		// ******************************* PREPARE ROWS ******************************
 		int nrows = CPXgetnumrows(env, lp);
-		// allocate current rhs and sense
-		calloc_s(rhs, ncomp, double);
-		calloc_s(sense, ncomp, char);
-		calloc_s(rowname, ncomp, char*);
 		// get component sizes
 		int tot_coeff_num = 0;
 		calloc_s(compsizes, ncomp, int);
 		for (int i = 0; i < g->nnodes; i++) compsizes[comp[i]]++;
 		// get total number of coefficients as the number of all the edges in all subtours
 		for (int row = 0; row < ncomp; row++) tot_coeff_num += compsizes[row] * (compsizes[row] - 1) / 2;
+		// allocate current rhs and sense
+		calloc_s(rhs, ncomp, double);
+		calloc_s(sense, ncomp, char);
+		calloc_s(rowname, ncomp, char*);
 		// setup rhs, sense and rowname
 		for (int row = 0; row < ncomp; row++)
 		{
@@ -132,6 +135,7 @@ void solve_benders(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 		calloc_s(rowlist, tot_coeff_num, int);
 		calloc_s(collist, tot_coeff_num, int);
 		calloc_s(vallist, tot_coeff_num, double);
+		// helper variables
 		int arr_idx = 0;
 		calloc_s(visited, g->nnodes, char);
 		// for node, prepare its values
@@ -142,6 +146,7 @@ void solve_benders(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 			{
 				if (!visited[j])
 				{
+					if (arr_idx >= tot_coeff_num) print_error("arr_idx out of bound", ERR_GENERIC_INCONSIST);
 					// set values for element x_ij
 					rowlist[arr_idx] = nrows + comp[i];
 					collist[arr_idx] = xpos(i, j, g->nnodes);
@@ -161,6 +166,7 @@ void solve_benders(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 			printf("CPX error %d\n", error);
 			print_error("wrong CPXchgcoeflist [SEC]", ERR_CPLEX);
 		}
+		// log the addition of constraints
 		log_line_ext(VERBOSITY, LOGLVL_INFO, "Added %d SE constraints with %d coefficients", ncomp, tot_coeff_num);
 
 		// ********************************* CLEANUP *********************************
@@ -174,6 +180,9 @@ void solve_benders(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 		free(rowlist);
 		free(collist);
 		free(vallist);
+		// free auxiliary arrays
+		free(compsizes);
+		free(visited);
 
 		// ************************* SOLVE MODEL WITH NEW SEC ************************
 		// solve model and get solution xstar

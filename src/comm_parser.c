@@ -4,7 +4,7 @@
 void parse_command_line(int argc, char** argv, instance* inst)
 {
 	// print command when debugging
-	log_line_ext(VERBOSITY, LOGLVL_INFO, "Running %s with %d parameters", argv[0], argc - 1);
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "Running command parser with %d parameters", argc);
 
 	// define the parameters for the instance
 	graph* g = &inst->inst_graph;
@@ -28,7 +28,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		{
 			p->timelimit = atof(tl_str);
 		}
-		tokencase_1("-file|-input|-f", file_name)
+		tokencase_1("-file|-input|-input_file|-f", file_name)
 		{
 			strcpy(p->input_file, file_name);
 		}
@@ -48,7 +48,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		{
 			p->cutoff = atoi(co_str);
 		}
-		tokencase_1("-batch|-batchfile|-bf", batchfile)
+		tokencase_1("-batch|-batch_file|-bf", batchfile)
 		{
 			strcpy(p->batch_file, batchfile);
 		}
@@ -62,15 +62,17 @@ void parse_command_line(int argc, char** argv, instance* inst)
 
 	if (help)
 	{
-		printf("## HELP TSP SOLVER 01/04/2021 ##\n");
+		printf("## HELP TSP SOLVER 07/04/2021 ##\n");
 		printf(" -help      \tCall help utility                                 \tSynonims: --help\n");
 		printf(" -model     \tModel type to indentify the optimization procedure\tSynonims: -model_type\n");
 		printf(" -time_limit\tTime limit for running the optimization process   \n");
-		printf(" -file      \tInput instance file name                          \tSynonims: -input -f\n");
+		printf(" -file      \tInput instance file name                          \tSynonims: -input, -input_file -f\n");
 		printf(" -int       \tSet integer costs for the model                   \n");
 		printf(" -seed      \tRandom Seed for CPX RNG                           \n");
 		printf(" -max_nodes \tMaximum number of branching nodes in the final run\n");
 		printf(" -cutoff    \tCutoff (upper bound) for master                   \n");
+		printf(" -batch     \tBatch file name for instance automatization       \tSynonims: -batch_file -bf\n");
+
 
 		exit(1);
 

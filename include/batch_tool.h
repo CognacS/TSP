@@ -42,11 +42,12 @@ typedef struct
 *						BATCH TOOL SECTION
 *********************************************************************************** */
 
-typedef struct
+typedef struct batch_tool_struct
 {
 
 	char input_file[MAX_SIZE_FILE_NAME];
 	char log_file[MAX_SIZE_FILE_NAME];
+	char csv_file[MAX_SIZE_FILE_NAME];
 
 	grid p_grid;
 
@@ -62,5 +63,6 @@ int next_inst_config(grid* p_grid, instance* inst);
 void free_gridparam(gridparam* params);
 void free_grid(grid* p_grid);
 void free_batchtool(batchtool* bt);
+
 
 #endif

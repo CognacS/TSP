@@ -25,15 +25,23 @@ int main(int argc, char **argv)
 		// initialize batch tool
 		batchtool bt;
 		strcpy(bt.input_file, inst.inst_params.batch_file);
-
+		// read batch file
 		read_batchfile(&bt);
+		// reorder grid to be used for printing on csv
+		reorder_grid_csv(&bt.p_grid);
 
+		// iterate through each instance
+		restart_grid(&bt.p_grid);
+		while (next_inst_config(&bt.p_grid, &inst))
+		{
+			log_datastruct(&inst.inst_params, TYPE_INST, VERBOSITY, LOGLVL_DEBUG);
+		}
 
 		free_batchtool(&bt);
 	}
 	// *******************************************************************************
 	else
-		// ***************************** SINGLE RUN MODE ****************************
+	// ******************************* SINGLE RUN MODE *******************************
 	{
 		// read the input file
 		read_input(&inst);
@@ -41,13 +49,14 @@ int main(int argc, char **argv)
 		// print instance if needed
 		log_datastruct(&inst, TYPE_INST, VERBOSITY, LOGLVL_DEBUG);
 
-		double* xstar = NULL;
-
-		if (TSPopt(&inst, &xstar)) print_error(NULL, ERR_OPT_PROCEDURE);
+		if (TSPopt(&inst)) print_error(NULL, ERR_OPT_PROCEDURE);
 		double t2 = second();
 
 
 		log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] TSP problem solved in %lf sec.s\n", t2 - t1);
+		log_datastruct(&inst.inst_global_data, TYPE_GLOB, VERBOSITY, LOGLVL_MSG);
+
+		double* xstar = inst.inst_global_data.xstar;
 
 		switch (model_tsptype(inst.inst_params.model_type))
 		{
@@ -60,11 +69,10 @@ int main(int argc, char **argv)
 			plot_tsp_solution_undirected(&inst.inst_graph, xstar);
 			break;
 		}
-		
 
-		// free solution
-		free(xstar);
 	}
+	// *******************************************************************************
+
 	// free the data structure
 	free_instance(&inst);
 	

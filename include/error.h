@@ -30,6 +30,7 @@
 // models errors
 #define ERR_WRONG_TSP_PROCEDURE	12
 #define ERR_MODEL_NOT_IMPL		13
+#define ERR_GENERIC_INCONSIST	14
 
 // *************** define warnings ***************
 #define WARN_WRONG_DATASTRUCT			0	// unknown data structure (inst, graph, etc...)
@@ -50,7 +51,8 @@ static const char* const error_msgs[] =
 	"input values error: ",
 	"NULL pointer returned when allocating array: ",
 	"wrong TSP solver procedure used for TSP variant",
-	"the requested model was not implemented: "
+	"the requested model was not implemented: ",
+	"generic inconsistency: "
 };
 
 static const char* const warn_msgs[] =
