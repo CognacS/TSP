@@ -55,7 +55,7 @@ void mip_add_cut(void* env, void* cbdata,
 	}
 
 	// REFERENCE: https://www.ibm.com/docs/es/cofz/12.10.0?topic=c-cpxxcallbackrejectcandidate-cpxcallbackrejectcandidate
-	if (purgeable == CUT_CALLBACK_LOCAL) 	// add the usercut *local* to the original model (with casting (CPXLPptr) cbdata)
+	if (purgeable == CUT_CALLBACK_REJECT) 	// add the usercut *local* to the original model (with casting (CPXLPptr) cbdata)
 	{
 		if (CPXcallbackrejectcandidate((CPXCALLBACKCONTEXTptr)env, 1, nnz, &rhs, &sense, &izero, index, value)) print_error("local cuts", ERR_ADD_CUT);
 		return;

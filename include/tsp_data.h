@@ -72,6 +72,7 @@ typedef struct {
 
 #define MODEL_TSP_SYMM 2
 #define	MODEL_SY_BEND 1
+#define MODEL_SY_CLBCK 2
 
 // masks for variants
 #define MODEL_VAR_STAT		0b00000000
@@ -97,7 +98,8 @@ typedef enum
 	GG_ST_SEC =		122,	// GG  static constraints + SEC
 	GG_LZ_SEC =		123,	// GG  lazy constraints + SEC
 
-	BEND =			210		// Benders' method
+	BENDERS =		210,	// Benders' method
+	CALLBACK =		220		// Callback's method
 } modeltype;
 
 

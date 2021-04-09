@@ -74,6 +74,28 @@ void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
 
 }
 
+/* **************************************************************************************************
+*				ADD SUBTOUR ELIMINATION CONSTRAINTS ON AN INFEASABLE SOLUTION
+************************************************************************************************** */
+static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void* userhandle)
+{
+	// get instance handle
+	instance* inst = (instance*)userhandle;
+	model* m = &inst->inst_model;
+
+	// get current solution and objective value
+	double* xstar;	arr_malloc_s(xstar, m->ncols, double);
+	double objval = CPX_INFBOUND;
+	if (CPXcallbackgetcandidatepoint(context, xstar, 0, m->ncols - 1, &objval)) print_error("CPXcallbackgetcandidatepoint error", ERR_CPLEX);
+
+	// add SEC on callback
+	add_sec_on_subtours(context, NULL, inst, xstar, -1, CUT_CALLBACK_REJECT);
+
+	// CLEANUP
+	free(xstar);
+	return 0;
+	
+}
 
 /* **************************************************************************************************
 *				ADD SUBTOUR ELIMINATION CONSTRAINTS ON AN INFEASABLE SOLUTION
@@ -189,6 +211,7 @@ void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
 			print_error("CPXgetx() Benders", ERR_CPLEX);
 		}
 
+		// produce new cuts on violated constraints
 		newcuts = add_sec_on_subtours(env, lp, inst, xstar, -1, CUT_STATIC);
 		log_line_ext(VERBOSITY, LOGLVL_INFO, "Added %d new SEC's", newcuts);
 
@@ -196,6 +219,33 @@ void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
 
 	// CLEANUP
 	free(xstar);
+
+}
+
+/* **************************************************************************************************
+*						SOLUTION USING CALLBACK'S METHOD
+************************************************************************************************** */
+void solve_callback(instance* inst, CPXENVptr env, CPXLPptr lp)
+{
+	int error;
+
+	// build naive model
+	build_model_base_undirected(inst, env, lp);
+
+	// add lazy constraints when there is a new candidate
+	CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
+	if (error = CPXcallbacksetfunc(env, lp, contextid, sec_callback, inst))
+	{
+		printf("CPX error %d\n", error);
+		print_error("CPXcallbacksetfunc() error", ERR_CPLEX);
+	}
+
+	// solve the problem with the callback
+	if (error = CPXmipopt(env, lp))
+	{
+		printf("CPX error %d\n", error);
+		print_error("CPXmipopt() Callback", ERR_CPLEX);
+	}
 
 }
 
@@ -213,6 +263,9 @@ void solve_symmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 	{
 	case MODEL_SY_BEND:
 		solve_benders(inst, env, lp);
+		break;
+	case MODEL_SY_CLBCK:
+		solve_callback(inst, env, lp);
 		break;
 	default:
 		print_error("symmetric variant", ERR_MODEL_NOT_IMPL);

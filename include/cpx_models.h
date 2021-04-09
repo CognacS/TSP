@@ -8,6 +8,9 @@
 
 
 // ****************************** SYMMETRIC TSP MODELS *******************************
+// ******** CALLBACKS *********
+static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void* userhandle);
+
 // *********** CUTS ***********
 // add SE constraints on subtour from an available infeasable solution
 // conform to all types of cuts (e.g. static, lazy, callback, etc...)
@@ -18,6 +21,7 @@ void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp);
 
 // ******** SOLUTIONS *********
 void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp);
+void solve_callback(instance* inst, CPXENVptr env, CPXLPptr lp);
 void solve_symmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp);
 // ***********************************************************************************
 
