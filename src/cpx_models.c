@@ -3,10 +3,13 @@
 /* **************************************************************************************************
 *						BASE MODEL FOR UNDIRECTED GRAPHS
 ************************************************************************************************** */
-void build_model_base_undirected(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
+void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
 
 	// ********************************* SETUP *********************************
+	// extract values
+	graph* g = &inst->inst_graph;
+	model* m = &inst->inst_model;
 	// define constants
 	double zero = 0.0;
 	char binary = 'B';
@@ -32,6 +35,8 @@ void build_model_base_undirected(graph* g, modeltype mt, CPXENVptr env, CPXLPptr
 			if (CPXgetnumcols(env, lp) - 1 != xpos(i, j, g->nnodes)) print_error("wrong position for x var.s using function \"xpos\"", ERR_INCORRECT_FUNCTION);
 		}
 	}
+	// update number of columns
+	m->ncols = CPXgetnumcols(env, lp);
 
 	// ************************ ADD ROWS (CONSTRAINTS) ************************
 	// add the degree constraints
@@ -58,133 +63,113 @@ void build_model_base_undirected(graph* g, modeltype mt, CPXENVptr env, CPXLPptr
 			if (CPXchgcoef(env, lp, lastrow, xpos(i, h, g->nnodes), 1.0)) print_error("wrong CPXchgcoef [degree]", ERR_CPLEX);
 		}
 	}
+
+
+}
+
+
+/* **************************************************************************************************
+*				ADD SUBTOUR ELIMINATION CONSTRAINTS ON AN INFEASABLE SOLUTION
+************************************************************************************************** */
+int add_sec_on_subtours(void* env, void* cbdata, instance* inst, double* xstar, int wherefrom, int purgeable)
+{
+	// extract structures
+	graph* g = &inst->inst_graph;
+	model* m = &inst->inst_model;
+
+	// ************************** FIND CONNECTED COMPONENTS **************************
+	// allocate connected components arrays
+	int ncomp = 0;
+	int* succ = NULL, * comp = NULL;
+	arr_malloc_s(succ, g->nnodes, int);
+	arr_malloc_s(comp, g->nnodes, int);
+	// find connected components
+	find_conncomps_dfs(g, xstar, succ, comp, &ncomp);
+
+	// if there is more than 1 connected component -> infeasable solution!
+	// must add SEC's
+	if (ncomp > 1)
+	{
+
+		// ********** ADD CUTS (1 SEC for each connected component) ***************
+		int nnz = 0;
+		double rhs = 0;
+		char sense = 'L';
+		double* value;		arr_malloc_s(value, m->ncols, double);
+		int* index;			arr_malloc_s(index, m->ncols, int);
+		// flag array for indicating a visited component
+		char* visitedcomp;	calloc_s(visitedcomp, ncomp, char);
+		// for each connected component add a constraint
+		int h = 0;
+		for (int c = 0; c < ncomp; c++)
+		{
+			// find a node from a non-visited component
+			while (h < g->nnodes && visitedcomp[comp[h]]) h++;
+			if (h >= g->nnodes) print_error("needed more components but found no node", ERR_GENERIC_INCONSIST);
+
+			// setup for current component
+			rhs = 0;
+			nnz = 0;
+			// elaborate the component starting from node h
+			// i is the current arrival point
+			for (int i = succ[h]; i != h; i = succ[i])
+			{
+				rhs++;
+				// j starts from the beginning of the subtour
+				// and iterates all previous nodes with respect to i
+				// and add the coefficients wrt x_ij
+				for (int j = h; j != i; j = succ[j])
+				{
+					index[nnz] = xpos(i, j, g->nnodes);
+					value[nnz] = 1.0;
+					nnz++;
+				}
+			}
+			// flag the component as visited and go on with nodes
+			visitedcomp[comp[h++]] = 1;
+
+			// add SEC
+			mip_add_cut(env, cbdata, wherefrom, nnz, rhs, sense, index, value, "SEC", purgeable);
+
+		}
+
+		// CLEAN UP SEC ARRAYS
+		free(index);
+		free(value);
+		free(visitedcomp);
+	}
+
+	// CLEAN UP CONN COMP ARRAYS
+	free(comp);
+	free(succ);
+
+	// return how many SEC's where added
+	return ncomp > 1? ncomp : 0;
+
 }
 
 /* **************************************************************************************************
 *						SOLUTION USING BENDERS' METHOD
 ************************************************************************************************** */
-void solve_benders(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
+void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
 	int error;
+	// extract structures
+	graph* g = &inst->inst_graph;
 
 	// build naive model
-	build_model_base_undirected(g, mt, env, lp);
+	build_model_base_undirected(inst, env, lp);
 	int ncols = CPXgetnumcols(env, lp);
 
 	// build solution array
 	double* xstar = NULL;
 	calloc_s(xstar, ncols, double);
-	// allocate auxiliary data structures
-	int* succ = NULL, *comp = NULL;
-	calloc_s(succ, g->nnodes, int);
-	calloc_s(comp, g->nnodes, int);
-	int ncomp = 0;
 
-	// solve model and get solution xstar
-	if (error = CPXmipopt(env, lp))
+	// number of cuts added at each iteration
+	int newcuts = 0;
+
+	do
 	{
-		printf("CPX error %d\n", error);
-		print_error("CPXmipopt() Benders", ERR_CPLEX);
-	}
-	if (error = CPXgetx(env, lp, xstar, 0, ncols - 1))
-	{
-		printf("CPX error %d\n", error);
-		print_error("CPXgetx() Benders", ERR_CPLEX);
-	}
-
-	// arrays for rows
-	double* rhs = NULL;
-	char* sense = NULL;
-	char** rowname = NULL;
-
-	// arrays for coefficients
-	int* rowlist = NULL;
-	int* collist = NULL;
-	double* vallist = NULL;
-
-	// auxiliary arrays
-	int* compsizes = NULL;
-	char* visited = NULL;
-
-	// while the solution has subtours
-	while (find_conncomps_dfs(g, xstar, succ, comp, &ncomp) > 1)
-	{
-		// ******************************* PREPARE ROWS ******************************
-		int nrows = CPXgetnumrows(env, lp);
-		// get component sizes
-		int tot_coeff_num = 0;
-		calloc_s(compsizes, ncomp, int);
-		for (int i = 0; i < g->nnodes; i++) compsizes[comp[i]]++;
-		// get total number of coefficients as the number of all the edges in all subtours
-		for (int row = 0; row < ncomp; row++) tot_coeff_num += compsizes[row] * (compsizes[row] - 1) / 2;
-		// allocate current rhs and sense
-		calloc_s(rhs, ncomp, double);
-		calloc_s(sense, ncomp, char);
-		calloc_s(rowname, ncomp, char*);
-		// setup rhs, sense and rowname
-		for (int row = 0; row < ncomp; row++)
-		{
-			rhs[row] = compsizes[row]-1;
-			sense[row] = 'L';
-			calloc_s(rowname[row], 30, char);
-			sprintf(rowname[row], "SEC(%d)", nrows + row+1);
-		}
-
-		// ****************************** PREPARE COEFFS *****************************
-		// allocate the coefficients arrays
-		calloc_s(rowlist, tot_coeff_num, int);
-		calloc_s(collist, tot_coeff_num, int);
-		calloc_s(vallist, tot_coeff_num, double);
-		// helper variables
-		int arr_idx = 0;
-		calloc_s(visited, g->nnodes, char);
-		// for node, prepare its values
-		for (int i = 0; i < g->nnodes; i++)
-		{
-			// iterate over the subtour to add constraints
-			for (int j = succ[i]; j != i; j = succ[j])
-			{
-				if (!visited[j])
-				{
-					if (arr_idx >= tot_coeff_num) print_error("arr_idx out of bound", ERR_GENERIC_INCONSIST);
-					// set values for element x_ij
-					rowlist[arr_idx] = nrows + comp[i];
-					collist[arr_idx] = xpos(i, j, g->nnodes);
-					vallist[arr_idx] = 1.0;
-					arr_idx++;
-				}
-			}
-			visited[i] = 1;
-		}
-
-		// **************************** CREATE CONSTRAINTS ***************************
-		// create empty rows (1 for each conn component)
-		if (CPXnewrows(env, lp, ncomp, rhs, sense, NULL, rowname)) print_error("wrong CPXnewrows [SEC]", ERR_CPLEX);
-		// fill coefficients (1 for each node)
-		if (error = CPXchgcoeflist(env, lp, tot_coeff_num, rowlist, collist, vallist))
-		{
-			printf("CPX error %d\n", error);
-			print_error("wrong CPXchgcoeflist [SEC]", ERR_CPLEX);
-		}
-		// log the addition of constraints
-		log_line_ext(VERBOSITY, LOGLVL_INFO, "Added %d SE constraints with %d coefficients", ncomp, tot_coeff_num);
-
-		// ********************************* CLEANUP *********************************
-		// free names
-		for (int row = 0; row < ncomp; row++) free(rowname[row]);
-		// free arrays for rows
-		free(rhs);
-		free(sense);
-		free(rowname);
-		// free arrays for coeffs
-		free(rowlist);
-		free(collist);
-		free(vallist);
-		// free auxiliary arrays
-		free(compsizes);
-		free(visited);
-
-		// ************************* SOLVE MODEL WITH NEW SEC ************************
 		// solve model and get solution xstar
 		if (error = CPXmipopt(env, lp))
 		{
@@ -196,24 +181,23 @@ void solve_benders(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 			printf("CPX error %d\n", error);
 			print_error("CPXgetx() Benders", ERR_CPLEX);
 		}
-	}
 
+		newcuts = add_sec_on_subtours(env, lp, inst, xstar, -1, CUT_STATIC);
+		log_line_ext(VERBOSITY, LOGLVL_INFO, "Added %d new SEC's", newcuts);
 
-	// ********** FINAL CLEANUP **********
-	// free solution
+	} while (newcuts);
+
+	// CLEANUP
 	free(xstar);
-	// free auxiliary data structures
-	free(succ);
-	free(comp);
-	// ***********************************
 
 }
 
 /* **************************************************************************************************
 *						SOLUTION USING UNDIRECTED GRAPHS MODELS
 ************************************************************************************************** */
-void solve_symmetric_tsp(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
+void solve_symmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
+	modeltype mt = inst->inst_params.model_type;
 	// if the tsptype of the model is not asymmetric, throw error
 	if (model_tsptype(mt) != TSP_SYMM) print_error("", ERR_WRONG_TSP_PROCEDURE);
 
@@ -221,7 +205,7 @@ void solve_symmetric_tsp(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 	switch (model_archetype(mt))
 	{
 	case SY_BEND:
-		solve_benders(g, mt, env, lp);
+		solve_benders(inst, env, lp);
 		break;
 	default:
 		print_error("symmetric variant", ERR_MODEL_NOT_IMPL);
@@ -232,10 +216,13 @@ void solve_symmetric_tsp(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 /* **************************************************************************************************
 *						BASE MODEL FOR DIRECTED GRAPHS
 ************************************************************************************************** */
-void build_model_base_directed(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
+void build_model_base_directed(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
 
 	// ********************************* SETUP *********************************
+	// extract values
+	graph* g = &inst->inst_graph;
+	model* m = &inst->inst_model;
 	// define constants
 	double zero = 0.0;
 	char binary = 'B';
@@ -272,6 +259,8 @@ void build_model_base_directed(graph* g, modeltype mt, CPXENVptr env, CPXLPptr l
 			if (CPXgetnumcols(env, lp) - 1 != xxpos(j, i, g->nnodes)) print_error("wrong position for x var.s using function \"xxpos\"", ERR_INCORRECT_FUNCTION);
 		}
 	}
+	// update number of columns
+	m->ncols = CPXgetnumcols(env, lp);
 
 	// ************************ ADD ROWS (CONSTRAINTS) ************************
 	// add the degree constraints
@@ -309,10 +298,14 @@ void build_model_base_directed(graph* g, modeltype mt, CPXENVptr env, CPXLPptr l
 /* **************************************************************************************************
 *			MILLER, TUCKER AND ZEMLIN COMPACT MODEL (MTZ)
 ************************************************************************************************** */
-void build_model_mtz(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
+void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
 	// construct the base model for directed graphs
-	build_model_base_directed(g, mt, env, lp);
+	build_model_base_directed(inst, env, lp);
+
+	// extract values
+	graph* g = &inst->inst_graph;
+	modeltype mt = inst->inst_params.model_type;
 	
 	int model_v = model_variant(mt);
 	char cname[100];
@@ -399,10 +392,14 @@ void build_model_mtz(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 /* **************************************************************************************************
 *			GAVISH AND GRAVES SINGLE COMMODITY FLOW MODEL (GG)
 ************************************************************************************************** */
-void build_model_gg(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
+void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
 	// construct the base model for directed graphs
-	build_model_base_directed(g, mt, env, lp);
+	build_model_base_directed(inst, env, lp);
+
+	// extract values
+	graph* g = &inst->inst_graph;
+	modeltype mt = inst->inst_params.model_type;
 
 	char cname[100];
 
@@ -515,8 +512,9 @@ void build_model_gg(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 /* **************************************************************************************************
 *						SOLUTION USING DIRECTED GRAPHS MODELS
 ************************************************************************************************** */
-void solve_asymmetric_tsp(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
+void solve_asymmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
+	modeltype mt = inst->inst_params.model_type;
 	// if the tsptype of the model is not asymmetric, throw error
 	if (model_tsptype(mt) != TSP_ASYMM) print_error("", ERR_WRONG_TSP_PROCEDURE);
 
@@ -524,10 +522,10 @@ void solve_asymmetric_tsp(graph* g, modeltype mt, CPXENVptr env, CPXLPptr lp)
 	switch (model_archetype(mt))
 	{
 	case AS_MTZ:
-		build_model_mtz(g, mt, env, lp);
+		build_model_mtz(inst, env, lp);
 		break;
 	case AS_GG:
-		build_model_gg(g, mt, env, lp);
+		build_model_gg(inst, env, lp);
 		break;
 	default:
 		print_error("asymmetric variant", ERR_MODEL_NOT_IMPL);

@@ -31,6 +31,8 @@
 #define ERR_WRONG_TSP_PROCEDURE	12
 #define ERR_MODEL_NOT_IMPL		13
 #define ERR_GENERIC_INCONSIST	14
+#define ERR_NO_SOLUTION			15
+#define ERR_ADD_CUT				16
 
 // *************** define warnings ***************
 #define WARN_WRONG_DATASTRUCT			0	// unknown data structure (inst, graph, etc...)
@@ -52,7 +54,9 @@ static const char* const error_msgs[] =
 	"NULL pointer returned when allocating array: ",
 	"wrong TSP solver procedure used for TSP variant",
 	"the requested model was not implemented: ",
-	"generic inconsistency: "
+	"generic inconsistency: ",
+	"no solution available",
+	"error encountered in mip_add_cut(): "
 };
 
 static const char* const warn_msgs[] =
@@ -70,5 +74,7 @@ if (!(ARRAY = (TYPE*)calloc((SIZE), sizeof(TYPE)))) print_error(#ARRAY, ERR_NO_M
 #define malloc_s(STRUCT, TYPE) \
 if (!(STRUCT = (TYPE*)malloc(sizeof(TYPE)))) print_error(#STRUCT, ERR_NO_MEM_FOR_ALLOC)
 
+#define arr_malloc_s(ARRAY, SIZE, TYPE) \
+if (!(ARRAY = (TYPE*)malloc((SIZE) * sizeof(TYPE)))) print_error(#ARRAY, ERR_NO_MEM_FOR_ALLOC)
 
 #endif

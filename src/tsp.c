@@ -17,7 +17,7 @@ int TSPopt(instance* inst)
 	params* p = &(inst->inst_params);
 	graph* g = &(inst->inst_graph);
 	CPXsetintparam(env, CPX_PARAM_RANDOMSEED, p->randomseed);
-	CPXsetintparam(env, CPX_PARAM_TILIM, (int)p->timelimit);
+	CPXsetdblparam(env, CPX_PARAM_TILIM, p->timelimit);
 	CPXsetintparam(env, CPX_PARAM_NODELIM, p->max_nodes);
 	CPXsetdblparam(env, CPX_PARAM_EPGAP, p->cutoff);
 	CPXsetdblparam(env, CPX_PARAM_EPINT, 0.0);
@@ -29,10 +29,10 @@ int TSPopt(instance* inst)
 	switch (model_tsptype(p->model_type))
 	{
 	case TSP_ASYMM:
-		solve_asymmetric_tsp(g, p->model_type, env, lp);
+		solve_asymmetric_tsp(inst, env, lp);
 		break;
 	case TSP_SYMM:
-		solve_symmetric_tsp(g, p->model_type, env, lp);
+		solve_symmetric_tsp(inst, env, lp);
 		break;
 	default:
 		print_error("TSP variant", ERR_MODEL_NOT_IMPL);
@@ -79,3 +79,5 @@ int TSPopt(instance* inst)
 	return 0; // or an appropriate nonzero error code
 
 }
+
+

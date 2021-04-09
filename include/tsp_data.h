@@ -129,12 +129,14 @@ typedef struct {
 /* ***********************************************************************************
 *						INSTANCE MODEL SECTION
 *********************************************************************************** */
+#define DEF_NCOLS 0
+
 /**
 * Define the model variables used during optimization
 */
 typedef struct {
 
-	int plc_holder;
+	int ncols;
 
 } model;
 

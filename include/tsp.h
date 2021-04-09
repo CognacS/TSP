@@ -12,4 +12,5 @@
 // optimization functions
 int TSPopt(instance* inst);
 
+
 #endif   /* TSP_H_ */ 

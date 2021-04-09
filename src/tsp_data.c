@@ -55,8 +55,8 @@ void print_global_data(global_data* inst_global)
 void print_model(model* inst_model)
 {
 	printf("Model:\n"
-		"\tplc_holder = %d\n",
-		inst_model->plc_holder
+		"\tncols = %d\n",
+		inst_model->ncols
 	);
 }
 
@@ -80,6 +80,7 @@ void fill_inst_default(instance* inst)
 	graph* g = &inst->inst_graph;
 	params* p = &inst->inst_params;
 	global_data* gd = &inst->inst_global_data;
+	model* m = &inst->inst_global_data;
 
 	// ************ DEFAULT PARAMETERS DEFINITION ************
 	g->integer_costs = DEF_INTEGER_COSTS;
@@ -96,6 +97,8 @@ void fill_inst_default(instance* inst)
 	p->max_nodes = DEF_MAX_NODES;
 
 	gd->xstar = DEF_XSTAR;
+
+	m->ncols = DEF_NCOLS;
 	// *******************************************************
 
 }
