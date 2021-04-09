@@ -16,6 +16,17 @@
 #define CUT_CALLBACK_REJECT	-5
 
 /**
+* takes the model type and returns the type of cut/constraint to give to mip_add_cut
+* in other words it matches the variant of mt with the bit mask for lazy constraints
+*/
+inline int variant2constr(modeltype mt) { return CUT_STATIC - (model_variant(mt) & MODEL_VAR_LZ); }
+/**
+* takes the model type and returns whether SEC's are needed
+* in other words it matches the variant of mt with the bit mask for SEC
+*/
+inline int need_sec(modeltype mt) { return model_variant(mt) & MODEL_VAR_SEC; }
+
+/**
 * Unified driver to add constraints to the LP.
 * */
 void mip_add_cut(void* env, void* cbdata,

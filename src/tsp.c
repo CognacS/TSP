@@ -28,10 +28,10 @@ int TSPopt(instance* inst)
 	// ************************ OPTIMIZATION ************************
 	switch (model_tsptype(p->model_type))
 	{
-	case TSP_ASYMM:
+	case MODEL_TSP_ASYMM:
 		solve_asymmetric_tsp(inst, env, lp);
 		break;
-	case TSP_SYMM:
+	case MODEL_TSP_SYMM:
 		solve_symmetric_tsp(inst, env, lp);
 		break;
 	default:

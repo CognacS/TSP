@@ -66,11 +66,18 @@ typedef struct {
 #define DEF_CUTOFF 1e-3
 
 // tree of implemented models
-#define TSP_ASYMM 1
-#define	AS_MTZ 1
-#define	AS_GG	2
-#define TSP_SYMM 2
-#define	SY_BEND 1
+#define MODEL_TSP_ASYMM 1
+#define	MODEL_AS_MTZ 1
+#define	MODEL_AS_GG	2
+
+#define MODEL_TSP_SYMM 2
+#define	MODEL_SY_BEND 1
+
+// masks for variants
+#define MODEL_VAR_STAT		0b00000000
+#define MODEL_VAR_LZ		0b00000001
+#define MODEL_VAR_NO_SEC	0b00000000
+#define MODEL_VAR_SEC		0b00000010
 
 /**
 * Type xyz of model to be solved, where:
@@ -80,11 +87,17 @@ typedef struct {
 */
 typedef enum
 {
-	MTZ_S = 110,		// MTZ static constraints
-	MTZ_L = 111,		// MTZ lazy constraints
-	MTZ_STE = 112,	// MTZ subtour elimination constraints
-	GG = 120,			// GG
-	BEND = 210			// Benders' method
+	MTZ_ST =		110,	// MTZ static constraints
+	MTZ_LZ =		111,	// MTZ lazy constraints
+	MTZ_ST_SEC =	112,	// MTZ static constraints + SEC
+	MTZ_LZ_SEC =	113,	// MTZ lazy constraints + SEC
+
+	GG_ST =			120,	// GG  static constraints
+	GG_LZ =			121,	// GG  lazy constraints
+	GG_ST_SEC =		122,	// GG  static constraints + SEC
+	GG_LZ_SEC =		123,	// GG  lazy constraints + SEC
+
+	BEND =			210		// Benders' method
 } modeltype;
 
 

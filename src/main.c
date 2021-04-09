@@ -60,11 +60,11 @@ int main(int argc, char **argv)
 
 		switch (model_tsptype(inst.inst_params.model_type))
 		{
-		case TSP_ASYMM:
+		case MODEL_TSP_ASYMM:
 			print_directed_sol(&inst.inst_graph, xstar);
 			plot_tsp_solution_directed(&inst.inst_graph, xstar);
 			break;
-		case TSP_SYMM:
+		case MODEL_TSP_SYMM:
 			print_undirected_sol(&inst.inst_graph, xstar);
 			plot_tsp_solution_undirected(&inst.inst_graph, xstar);
 			break;

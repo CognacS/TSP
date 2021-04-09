@@ -39,31 +39,38 @@ void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
 	m->ncols = CPXgetnumcols(env, lp);
 
 	// ************************ ADD ROWS (CONSTRAINTS) ************************
+	// set degree of contraint
+	double rhs = 2.0;
+	// 'E' for equality constraint 
+	char sense = 'E';
+	// prepare arrays for constraints
+	int nnz = 0;
+	int* index;		arr_malloc_s(index, g->nnodes - 1, int);
+	double* value;	arr_malloc_s(value, g->nnodes - 1, double);
+
 	// add the degree constraints
 	for (int h = 0; h < g->nnodes; h++)  // degree constraints
 	{
-		// get row number
-		int lastrow = CPXgetnumrows(env, lp);
-		// set degree of contraint
-		double rhs = 2.0;
-		// 'E' for equality constraint 
-		char sense = 'E';
 		// define name of constraint
 		sprintf(cname, "degree(%d)", h + 1);
-		// add empty constraint in CPX
-		// TODO: setup array of constraints: (coefficients, positions)
-		// pass it inside CPXnewrows!
-		if (CPXnewrows(env, lp, 1, &rhs, &sense, NULL, &ptr_cname)) print_error("wrong CPXnewrows [degree]", ERR_CPLEX);
+
+		nnz = 0;
 		// fill the added constraint
 		for (int i = 0; i < g->nnodes; i++)
 		{
 			// no constraint with itself
 			if (i == h) continue;
 			// constraint with node i
-			if (CPXchgcoef(env, lp, lastrow, xpos(i, h, g->nnodes), 1.0)) print_error("wrong CPXchgcoef [degree]", ERR_CPLEX);
+			index[nnz] = xpos(i, h, g->nnodes);
+			value[nnz] = 1.0;
+			nnz++;
 		}
-	}
 
+		mip_add_cut(env, lp, -1, nnz, rhs, sense, index, value, cname, CUT_STATIC);
+	}
+	// CLEANUP
+	free(index);
+	free(value);
 
 }
 
@@ -199,12 +206,12 @@ void solve_symmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
 	modeltype mt = inst->inst_params.model_type;
 	// if the tsptype of the model is not asymmetric, throw error
-	if (model_tsptype(mt) != TSP_SYMM) print_error("", ERR_WRONG_TSP_PROCEDURE);
+	if (model_tsptype(mt) != MODEL_TSP_SYMM) print_error("", ERR_WRONG_TSP_PROCEDURE);
 
 	// build symmetric TSP model OR use symmetric TSP procedure
 	switch (model_archetype(mt))
 	{
-	case SY_BEND:
+	case MODEL_SY_BEND:
 		solve_benders(inst, env, lp);
 		break;
 	default:
@@ -263,35 +270,46 @@ void build_model_base_directed(instance* inst, CPXENVptr env, CPXLPptr lp)
 	m->ncols = CPXgetnumcols(env, lp);
 
 	// ************************ ADD ROWS (CONSTRAINTS) ************************
+	// set degree of contraint
+	double rhs = 1.0;
+	// 'E' for equality constraint 
+	char sense = 'E';
+	// prepare arrays for constraints
+	int nnz = 0;
+	int*	index_out;	arr_malloc_s(index_out, g->nnodes - 1, int);
+	double* value_out;	arr_malloc_s(value_out, g->nnodes - 1, double);
+	int*	index_in;	arr_malloc_s(index_in, g->nnodes - 1, int);
+	double* value_in;	arr_malloc_s(value_in, g->nnodes - 1, double);
 	// add the degree constraints
 	for (int h = 0; h < g->nnodes; h++)  // degree constraints
 	{
-		// get row number
-		int lastrow = CPXgetnumrows(env, lp);
-		// set degree of contraint
-		double rhs = 1.0;
-		// 'E' for equality constraint 
-		char sense = 'E';
-		// OUTGOING CONSTRAINT
-		// define name of constraint
-		sprintf(cname, "degree_out(%d)", h + 1);
-		// add empty constraint in CPX
-		if (CPXnewrows(env, lp, 1, &rhs, &sense, NULL, &ptr_cname)) print_error("wrong CPXnewrows [degree]", ERR_CPLEX);
-		// INGOING CONSTRAINT
-		// define name of constraint
-		sprintf(cname, "degree_in(%d)", h + 1);
-		// add empty constraint in CPX
-		if (CPXnewrows(env, lp, 1, &rhs, &sense, NULL, &ptr_cname)) print_error("wrong CPXnewrows [degree]", ERR_CPLEX);
+		// reset nnz
+		nnz = 0;
 		// fill the added constraints
 		for (int i = 0; i < g->nnodes; i++)
 		{
 			// no constraint with itself
 			if (i == h) continue;
 			// constraint with node i
-			if (CPXchgcoef(env, lp, lastrow, xxpos(h, i, g->nnodes), 1.0)) print_error("wrong CPXchgcoef [degree]", ERR_CPLEX);
-			if (CPXchgcoef(env, lp, lastrow+1, xxpos(i, h, g->nnodes), 1.0)) print_error("wrong CPXchgcoef [degree]", ERR_CPLEX);
+			index_out[nnz] = xxpos(h, i, g->nnodes);
+			index_in[nnz]  = xxpos(i, h, g->nnodes);
+			value_out[nnz] = 1.0;
+			value_in[nnz] =  1.0;
+			nnz++;
 		}
+		// OUTGOING CONSTRAINT
+		// define name of constraints
+		sprintf(cname, "degree_out(%d)", h + 1);
+		mip_add_cut(env, lp, -1, nnz, rhs, sense, index_out, value_out, cname, CUT_STATIC);
+		// INGOING CONSTRAINT
+		// define name of constraint
+		sprintf(cname, "degree_in(%d)", h + 1);
+		mip_add_cut(env, lp, -1, nnz, rhs, sense, index_in, value_in, cname, CUT_STATIC);
 	}
+
+	// CLEANUP
+	free(index_out);	free(index_in);
+	free(value_out);	free(value_in);
 }
 
 
@@ -306,8 +324,7 @@ void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp)
 	// extract values
 	graph* g = &inst->inst_graph;
 	modeltype mt = inst->inst_params.model_type;
-	
-	int model_v = model_variant(mt);
+	// define name of constraints
 	char cname[100];
 
 	// define bounds of integer values
@@ -329,10 +346,13 @@ void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp)
 	}
 
 	// ************************ ADD ROWS (CONSTRAINTS) ************************
-	// add static/lazy constraints  1.0 * u_i - 1.0 * u_j + M * x_ij <= M - 1, for each arc (i,j) not touching node 0	
-	int izero = 0;
+	// add static/lazy constraints  1.0 * u_i - 1.0 * u_j + M * x_ij <= M - 1, for each arc (i,j) not touching node 0
+	// get type to constraint to add to the model
+	int constr_type = variant2constr(mt);
+	// define arrays
 	int index[3];
 	double value[3];
+	// define constants
 	double big_M = g->nnodes - 1.0;
 	double rhs = big_M - 1.0;
 	char sense = 'L';
@@ -349,42 +369,9 @@ void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp)
 			value[1] = -1.0;
 			index[2] = xxpos(i, j, g->nnodes);
 			value[2] = big_M;
-			int numrows;
-			switch (model_v)
-			{
-			case 0:
-				numrows = CPXgetnumrows(env, lp);
-				if (CPXnewrows(env, lp, 1, &rhs, &sense, NULL, &ptr_cname)) print_error("wrong CPXlazyconstraints() for u-consistency", ERR_CPLEX);
-				for (int k = 0; k < nnz; k++)
-				{
-					if (CPXchgcoef(env, lp, numrows, index[k], value[k])) print_error("wrong CPXchgcoef [degree]", ERR_CPLEX);
-				}
-				break;
-			case 1:
-			case 2:
-				if (CPXaddlazyconstraints(env, lp, 1, nnz, &rhs, &sense, &izero, index, value, &ptr_cname)) print_error("wrong CPXlazyconstraints() for u-consistency", ERR_CPLEX);
-				break;
-			}
-			
-		}
-	}
-	if (model_v == 2)
-	{
-		// add lazy constraints 1.0 * x_ij + 1.0 * x_ji <= 1, for each arc (i,j) with i < j
-		rhs = 1.0;
-		char sense = 'L';
-		nnz = 2;
-		for (int i = 0; i < g->nnodes; i++)
-		{
-			for (int j = i + 1; j < g->nnodes; j++)
-			{
-				sprintf(cname, "SEC on node pair (%d,%d)", i + 1, j + 1);
-				index[0] = xxpos(i, j, g->nnodes);
-				value[0] = 1.0;
-				index[1] = xxpos(j, i, g->nnodes);
-				value[1] = 1.0;
-				if (CPXaddlazyconstraints(env, lp, 1, nnz, &rhs, &sense, &izero, index, value, &ptr_cname)) print_error("wrong CPXlazyconstraints on 2-node SECs", ERR_CPLEX);
-			}
+
+			// add constraint
+			mip_add_cut(env, lp, -1, nnz, rhs, sense, index, value, cname, constr_type);
 		}
 	}
 }
@@ -436,13 +423,13 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 	}
 
 	// ************************ ADD ROWS (CONSTRAINTS) ************************
-	int izero = 0;
+	int constr_type = variant2constr(mt);
 	double rhs = 0.0;
 	char sense = 'E';
 	int index[2];
 	double value[2];
 	int nnz = 2;
-	// add lazy constraints (n-1) * x_1j - 1.0 * y_1j == 0 for each j but the first node
+	// add static/lazy constraints (n-1) * x_1j - 1.0 * y_1j == 0 for each j but the first node
 	for (int j = 1; j < g->nnodes; j++)
 	{
 		sprintf(cname, "commodity quantity on arc (%d,%d)", 1, j + 1);
@@ -450,11 +437,11 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 		value[0] = g->nnodes - 1.0;
 		index[1] = ypos(0, j, g->nnodes);
 		value[1] = -1.0;
-		if (CPXaddlazyconstraints(env, lp, 1, nnz, &rhs, &sense, &izero, index, value, &ptr_cname)) print_error("wrong CPXlazyconstraints on comm qty", ERR_CPLEX);
+		mip_add_cut(env, lp, -1, nnz, rhs, sense, index, value, cname, constr_type);
 	}
 
 	sense = 'G';
-	// add lazy constrains (n-2) * x_ij - 1.0 * y_ij >= 0.0, for each arc (i,j) with i,j=/=0
+	// add static/lazy constrains (n-2) * x_ij - 1.0 * y_ij >= 0.0, for each arc (i,j) with i,j=/=0
 	for (int i = 1; i < g->nnodes; i++)
 	{
 		for (int j = 1; j < g->nnodes; j++)
@@ -466,24 +453,21 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 			value[0] = g->nnodes - 2.0;
 			index[1] = ypos(i, j, g->nnodes);
 			value[1] = -1.0;
-			if (CPXaddlazyconstraints(env, lp, 1, nnz, &rhs, &sense, &izero, index, value, &ptr_cname)) print_error("wrong CPXlazyconstraints on comm qty", ERR_CPLEX);
+			mip_add_cut(env, lp, -1, nnz, rhs, sense, index, value, cname, constr_type);
 		}
 	}
-
-	int* index_flow;
-	double* value_flow;
+	
 	// allocate arrays for holding indices and values for flow constraints
-	if (!(index_flow = (int*)calloc(2 * (g->nnodes-1), sizeof(int)))) print_error("index_flow", ERR_NO_MEM_FOR_ALLOC);
-	if (!(value_flow = (double*)calloc(2 * (g->nnodes-1), sizeof(double)))) print_error("value_flow", ERR_NO_MEM_FOR_ALLOC);
+	int* index_flow;		arr_malloc_s(index_flow, 2 * (g->nnodes - 1), int);
+	double* value_flow;		arr_malloc_s(value_flow, 2 * (g->nnodes - 1), double);
 
 	sense = 'E';
 	rhs = 1.0;
 	nnz = 2 * (g->nnodes - 1);
 
-	// add lazy constrains on flow through nodes
+	// add static/lazy constrains on flow through nodes
 	for (int h = 1; h < g->nnodes; h++)
 	{
-
 		// define name of constraint
 		sprintf(cname, "flow(%d)", h + 1);
 
@@ -501,12 +485,41 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 			value_flow[arr_idx+g->nnodes-1] = -1.0;
 			arr_idx++;
 		}
-		if (CPXaddlazyconstraints(env, lp, 1, nnz, &rhs, &sense, &izero, index_flow, value_flow, &ptr_cname)) print_error("wrong CPXlazyconstraints on flow constraints", ERR_CPLEX);
+		mip_add_cut(env, lp, -1, nnz, rhs, sense, index_flow, value_flow, cname, constr_type);
 	}
 
 	free(index_flow);
 	free(value_flow);
 
+}
+
+/* **************************************************************************************************
+*				ADD SUBTOUR ELIMINATION CONSTRAINT FOR PAIRS IN ASYMMETRIC TSP
+************************************************************************************************** */
+
+void add_sec2_asymmetric(instance* inst, CPXENVptr env, CPXLPptr lp)
+{
+	graph* g = &inst->inst_graph;
+
+	// add lazy constraints 1.0 * x_ij + 1.0 * x_ji <= 1, for each arc (i,j) with i < j
+	char cname[100];
+	double rhs = 1.0;
+	char sense = 'L';
+	int nnz = 2;
+	int index[3];
+	double value[3];
+	for (int i = 0; i < g->nnodes; i++)
+	{
+		for (int j = i + 1; j < g->nnodes; j++)
+		{
+			sprintf(cname, "SEC on node pair (%d,%d)", i + 1, j + 1);
+			index[0] = xxpos(i, j, g->nnodes);
+			value[0] = 1.0;
+			index[1] = xxpos(j, i, g->nnodes);
+			value[1] = 1.0;
+			mip_add_cut(env, lp, -1, nnz, rhs, sense, index, value, cname, CUT_LAZY);
+		}
+	}
 }
 
 /* **************************************************************************************************
@@ -516,20 +529,23 @@ void solve_asymmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
 	modeltype mt = inst->inst_params.model_type;
 	// if the tsptype of the model is not asymmetric, throw error
-	if (model_tsptype(mt) != TSP_ASYMM) print_error("", ERR_WRONG_TSP_PROCEDURE);
+	if (model_tsptype(mt) != MODEL_TSP_ASYMM) print_error("", ERR_WRONG_TSP_PROCEDURE);
 
 	// build asymmetric TSP model
 	switch (model_archetype(mt))
 	{
-	case AS_MTZ:
+	case MODEL_AS_MTZ:
 		build_model_mtz(inst, env, lp);
 		break;
-	case AS_GG:
+	case MODEL_AS_GG:
 		build_model_gg(inst, env, lp);
 		break;
 	default:
 		print_error("asymmetric variant", ERR_MODEL_NOT_IMPL);
 	}
+
+	// add SEC on pairs if needed
+	if (need_sec(mt)) add_sec2_asymmetric(inst, env, lp);
 
 	// solve the model
 	int error = 0;

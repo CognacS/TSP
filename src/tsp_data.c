@@ -80,7 +80,7 @@ void fill_inst_default(instance* inst)
 	graph* g = &inst->inst_graph;
 	params* p = &inst->inst_params;
 	global_data* gd = &inst->inst_global_data;
-	model* m = &inst->inst_global_data;
+	model* m = &inst->inst_model;
 
 	// ************ DEFAULT PARAMETERS DEFINITION ************
 	g->integer_costs = DEF_INTEGER_COSTS;
