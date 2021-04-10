@@ -35,7 +35,7 @@ int TSPopt(instance* inst)
 		solve_symmetric_tsp(inst, env, lp);
 		break;
 	default:
-		print_error("TSP variant", ERR_MODEL_NOT_IMPL);
+		print_error(ERR_MODEL_NOT_IMPL, "TSP variant");
 	}
 
 	if (VERBOSITY >= LOGLVL_INFO) CPXwriteprob(env, lp, "model.lp", NULL);
@@ -49,30 +49,22 @@ int TSPopt(instance* inst)
 	if (gd->xstar != NULL) free(gd->xstar);
 	calloc_s(gd->xstar, ncols, double);
 	if (error = CPXgetx(env, lp, gd->xstar, 0, ncols - 1))
-	{
-		printf("CPX error %d\n", error);
-		print_error("CPXgetx()", ERR_CPLEX);
-	}
+		print_error_ext(ERR_CPLEX, "CPXgetx() Finalized, CPX error: %d", error);
 
 	// get the obj value
 	if (error = CPXgetobjval(env, lp, &gd->zbest))
-	{
-		printf("CPX error %d\n", error);
-		print_error("CPXgetobjval()", ERR_CPLEX);
-	}
-	printf("Final objective value = %f\n", gd->zbest);
+		print_error_ext(ERR_CPLEX, "CPXgetobjval(), CPX error: %d", error);
+
+	log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE]: Final objective value = %f\n", gd->zbest);
 
 	// get the lower bound
 	if (error = CPXgetbestobjval(env, lp, &gd->lbbest))
-	{
-		printf("CPX error %d\n", error);
-		print_error("CPXgetobjval()", ERR_CPLEX);
-	}
+		print_error_ext(ERR_CPLEX, "CPXgetbestobjval(), CPX error: %d", error);
 
 
 	// ************************ CLEAN-UP ************************
 
-	// free and close cplex model   
+	// free and close cplex model 
 	CPXfreeprob(env, &lp);
 	CPXcloseCPLEX(&env);
 

@@ -7,7 +7,7 @@ void read_input(instance* inst)
 	sprintf(input_file, "./data/%s", inst->inst_params.input_file);
 	FILE* fin = fopen(input_file, "r");
 	// check if the file exists
-	if (fin == NULL) print_error(input_file, ERR_INPUT_NOT_EXISTS);
+	if (fin == NULL) print_error(ERR_INPUT_NOT_EXISTS, input_file);
 
 	// get the instance graph
 	graph* g = &inst->inst_graph;
@@ -35,7 +35,8 @@ void read_input(instance* inst)
 			}
 			tokencase_1("TYPE", type)
 			{
-				if (strncmp(type, "TSP", 4) != 0) print_error("only TYPE == TSP implemented so far", ERR_INPUT_FORMAT);
+				if (strncmp(type, "TSP", 4) != 0)
+					print_error(ERR_INPUT_FORMAT, "only TYPE == TSP implemented so far");
 			}
 			tokencase_1("DIMENSION", dim)
 			{
@@ -51,13 +52,13 @@ void read_input(instance* inst)
 				if (!strncmp(ewt_str, "EUC_2D", 6)) { g->distance_type = EUC_2D; continue; }
 				if (!strncmp(ewt_str, "GEO", 3))	{ g->distance_type = GEO; continue; }
 
-				print_error("only EDGE_WEIGHT_TYPE == ATT, EUC_2D, GEO implemented so far", ERR_INPUT_FORMAT);
+				print_error(ERR_INPUT_FORMAT, "only EDGE_WEIGHT_TYPE == ATT, EUC_2D, GEO implemented so far");
 
 			}
 			tokencase("NODE_COORD_SECTION")
 			{
 				set_section(COORD_SECTION);
-				if (g->nnodes <= 0) print_error("DIMENSION -> NODE_COORD_SECTION", ERR_PARAM_DISORDERED);
+				if (g->nnodes <= 0) print_error(ERR_INPUT_PARAM_DISORDERED, "DIMENSION -> NODE_COORD_SECTION");
 			}
 		}
 		section(COORD_SECTION)
@@ -69,7 +70,7 @@ void read_input(instance* inst)
 			tokencase_n(ANY_STR, 2, coords_str)
 			{
 				int i = atoi(_buffer) - 1;
-				if (i < 0 || i >= g->nnodes) print_error(NULL, ERR_UNKNOWN_NODE);
+				if (i < 0 || i >= g->nnodes) print_error(ERR_INPUT_UNKNOWN_NODE, NULL);
 				g->xcoord[i] = atof(coords_str[0]);
 				g->ycoord[i] = atof(coords_str[1]);
 				log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] node %4d at coordinates ( %15.7lf , %15.7lf )", i + 1, g->xcoord[i], g->ycoord[i]);
@@ -78,7 +79,7 @@ void read_input(instance* inst)
 		tokenfinally(param)
 		{
 			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Final active section %d", _section);
-			print_warn(param, WARN_IGNORED_INPUT_FILE_PARAM);
+			print_warn(WARN_IGNORED_INPUT_FILE_PARAM, param);
 		}
 	}
 	
@@ -98,7 +99,7 @@ void read_batchfile(batchtool* bt)
 	sprintf(input_file, "./batching/%s", bt->input_file);
 	FILE* fin = fopen(input_file, "r");
 	// check if the file exists
-	if (fin == NULL) print_error(input_file, ERR_INPUT_NOT_EXISTS);
+	if (fin == NULL) print_error(ERR_INPUT_NOT_EXISTS, input_file);
 
 	// set default values
 	grid* p_grid = &bt->p_grid;
@@ -121,7 +122,7 @@ void read_batchfile(batchtool* bt)
 		{
 			tokencase_1("PARAMS_NUM", pnum_str)
 			{
-				if (p_grid->params_num >= 0) print_error("duplicate PARAMS_NUM", ERR_INPUT_FORMAT);
+				if (p_grid->params_num >= 0) print_error(ERR_INPUT_FORMAT, "duplicate PARAMS_NUM");
 				// set params_num
 				p_grid->params_num = atoi(pnum_str);
 				// allocate parameters grid
@@ -133,7 +134,7 @@ void read_batchfile(batchtool* bt)
 			}
 			tokencase_1("PARAM", param_name)
 			{
-				if (params_counter >= p_grid->params_num) print_error("out of bound for number of batching parameters", ERR_INPUT_FORMAT);
+				if (params_counter >= p_grid->params_num) print_error(ERR_INPUT_FORMAT, "out of bound for number of batching parameters");
 				// setup new parameter
 				active_param = &p_grid->grid_params[params_counter++];
 				strcpy(active_param->param_name, param_name);
@@ -154,11 +155,11 @@ void read_batchfile(batchtool* bt)
 				if (!strncmp(axis_str, "CELL", 4) != 0) { active_param->axis = CELL; continue; }
 
 				log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] csv type axis is: %s", axis_str);
-				print_error("only CSV_AXIS == ROWS, COLS possible", ERR_INPUT_FORMAT);
+				print_error(ERR_INPUT_FORMAT, "only CSV_AXIS == ROWS, COLS possible");
 			}
 			tokencase_1("VALUES_NUM", vnum_str)
 			{
-				if (active_param->values_num >= 0) print_error("duplicate VALUES_NUM", ERR_INPUT_FORMAT);
+				if (active_param->values_num >= 0) print_error(ERR_INPUT_FORMAT, "duplicate VALUES_NUM");
 				// set values_num of current parameter
 				active_param->values_num = atoi(vnum_str);
 				// allocate labels and values of current parameter
@@ -171,7 +172,7 @@ void read_batchfile(batchtool* bt)
 			tokencase("VALUES_SECTION")
 			{
 				set_section(BATCH_VALUES_SECTION);
-				if (active_param->values_num <= 0) print_error("VALUES_NUM -> VALUES_SECTION", ERR_PARAM_DISORDERED);
+				if (active_param->values_num <= 0) print_error(ERR_INPUT_PARAM_DISORDERED, "VALUES_NUM -> VALUES_SECTION");
 			}
 			tokencase("END_PARAM")
 			{
@@ -187,7 +188,7 @@ void read_batchfile(batchtool* bt)
 			}
 			tokencase_1(ANY_STR, value)
 			{
-				if (values_counter >= active_param->values_num) print_error("out of bound for number of values in parameter", ERR_INPUT_FORMAT);
+				if (values_counter >= active_param->values_num) print_error(ERR_INPUT_FORMAT, "out of bound for number of values in parameter");
 
 				// allocate strings
 				calloc_s(active_param->labels[values_counter], strlen(_buffer)+1, char);
@@ -204,7 +205,7 @@ void read_batchfile(batchtool* bt)
 		tokenfinally(param)
 		{
 			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Final active section %d", _section);
-			print_warn(param, WARN_IGNORED_INPUT_FILE_PARAM);
+			print_warn(WARN_IGNORED_INPUT_FILE_PARAM, param);
 		}
 	}
 
@@ -267,10 +268,10 @@ int next_value_tsplike(void* ds, char* out_buffer, int section)
 
 strings_iterator* build_tsplike_iter(FILE* fin)
 {
-	datasource_tsplike* ds = (datasource_tsplike*)malloc(sizeof(datasource_tsplike));
+	datasource_tsplike* ds;		malloc_s(ds, datasource_tsplike);
 	ds->fp = fin;
 
-	strings_iterator* iter = (strings_iterator*)malloc(sizeof(strings_iterator));
+	strings_iterator* iter;		malloc_s(iter, strings_iterator);
 	iter->datasource = (void*)ds;
 	iter->next_arg = next_arg_tsplike;
 	iter->next_value = next_value_tsplike;

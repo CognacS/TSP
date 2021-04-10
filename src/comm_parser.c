@@ -54,7 +54,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		}
 		tokenfinally(arg)
 		{
-			print_error(arg, ERR_ARG_UNDEF);
+			print_error(ERR_CLINE_ARG_UNDEF, arg);
 		}
 	}
 

@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 		// print instance if needed
 		log_datastruct(&inst, TYPE_INST, VERBOSITY, LOGLVL_DEBUG);
 
-		if (TSPopt(&inst)) print_error(NULL, ERR_OPT_PROCEDURE);
+		if (TSPopt(&inst)) print_error(ERR_OPT_PROCEDURE, NULL);
 		double t2 = second();
 
 

@@ -102,7 +102,7 @@ int dist_to_int(double distance)
 int xpos(int i, int j, int nnodes)
 {
 	// if indices are equal throw error
-	if (i == j) print_error("got equal indices in xpos", ERR_INPUT_VALUES);
+	if (i == j) print_error(ERR_INVALID_FUNC_ARGS, "got equal indices in xpos");
 	// if indices are inverted return the inverted xpos
 	if (i > j) return xpos(j, i, nnodes);
 	// compute xpos
@@ -112,7 +112,7 @@ int xpos(int i, int j, int nnodes)
 int xxpos(int i, int j, int nnodes)
 {
 	// if indices are equal throw error
-	if (i == j) print_error("got equal indices in xxpos", ERR_INPUT_VALUES);
+	if (i == j) print_error(ERR_INVALID_FUNC_ARGS, "got equal indices in xxpos");
 	// else return xxpos
 	if (i < j) return 2 * xpos(i, j, nnodes);
 	else return 2 * xpos(j, i, nnodes) + 1;
@@ -121,7 +121,7 @@ int xxpos(int i, int j, int nnodes)
 int upos(int i, int nnodes)
 {
 	// if index is of first node throw error
-	if (i == 0) print_error("got node 0 in upos", ERR_INPUT_VALUES);
+	if (i == 0) print_error(ERR_INVALID_FUNC_ARGS, "got node 0 in upos");
 	// else return upos
 	return i - 1 + (nnodes-1) * nnodes;
 }
@@ -129,7 +129,7 @@ int upos(int i, int nnodes)
 int ypos(int i, int j, int nnodes)
 {
 	// if indices are equal throw error
-	if (i == j) print_error("got equal indices in ypos", ERR_INPUT_VALUES);
+	if (i == j) print_error(ERR_INVALID_FUNC_ARGS, "got equal indices in ypos");
 	// else return ypos
 	return xxpos(i, j, nnodes) + (nnodes - 1) * nnodes;
 }
@@ -161,7 +161,7 @@ void log_datastruct(void* object, int type, int runlvl, int loglvl)
 			print_instance((instance*)object);
 			break;
 		default:
-			print_warn(NULL, WARN_WRONG_DATASTRUCT);
+			print_warn(WARN_WRONG_DATASTRUCT, NULL);
 		}
 	}
 }

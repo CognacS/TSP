@@ -3,6 +3,7 @@
 #define FILE_PARSER_H_
 
 #include "tsp_data.h"
+#include "tsp_utility.h"
 #include "log.h"
 #include "error.h"
 #include "parser.h"

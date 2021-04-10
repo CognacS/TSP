@@ -30,9 +30,11 @@ void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
 			// define coefficients
 			double obj = dist(i, j, g); // cost == distance 
 			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_cname)) print_error("wrong CPXnewcols on x var.s", ERR_CPLEX);
+			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_cname))
+				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
 			// check correctness of xpos
-			if (CPXgetnumcols(env, lp) - 1 != xpos(i, j, g->nnodes)) print_error("wrong position for x var.s using function \"xpos\"", ERR_INCORRECT_FUNCTION);
+			if (CPXgetnumcols(env, lp) - 1 != xpos(i, j, g->nnodes))
+				print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"xpos\"");
 		}
 	}
 	// update number of columns
@@ -86,7 +88,8 @@ static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG context
 	// get current solution and objective value
 	double* xstar;	arr_malloc_s(xstar, m->ncols, double);
 	double objval = CPX_INFBOUND;
-	if (CPXcallbackgetcandidatepoint(context, xstar, 0, m->ncols - 1, &objval)) print_error("CPXcallbackgetcandidatepoint error", ERR_CPLEX);
+	if (CPXcallbackgetcandidatepoint(context, xstar, 0, m->ncols - 1, &objval))
+		print_error(ERR_CPLEX, "CPXcallbackgetcandidatepoint error");
 
 	// add SEC on callback
 	add_sec_on_subtours(context, NULL, inst, xstar, -1, CUT_CALLBACK_REJECT);
@@ -134,7 +137,8 @@ int add_sec_on_subtours(void* env, void* cbdata, instance* inst, double* xstar, 
 		{
 			// find a node from a non-visited component
 			while (h < g->nnodes && visitedcomp[comp[h]]) h++;
-			if (h >= g->nnodes) print_error("needed more components but found no node", ERR_GENERIC_INCONSIST);
+			if (h >= g->nnodes)
+				print_error(ERR_MODEL_INCONSISTENT, "needed more components but found no other node");
 
 			// setup for current component
 			rhs = 0;
@@ -199,17 +203,13 @@ void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
 
 	do
 	{
-		// solve model and get solution xstar
+		// solve model
 		if (error = CPXmipopt(env, lp))
-		{
-			printf("CPX error %d\n", error);
-			print_error("CPXmipopt() Benders", ERR_CPLEX);
-		}
+			print_error_ext(ERR_CPLEX, "CPXmipopt() Benders, CPX error: %d", error);
+
+		// get solution xstar
 		if (error = CPXgetx(env, lp, xstar, 0, ncols - 1))
-		{
-			printf("CPX error %d\n", error);
-			print_error("CPXgetx() Benders", ERR_CPLEX);
-		}
+			print_error_ext(ERR_CPLEX, "CPXgetx() Benders, CPX error: %d", error);
 
 		// produce new cuts on violated constraints
 		newcuts = add_sec_on_subtours(env, lp, inst, xstar, -1, CUT_STATIC);
@@ -235,17 +235,11 @@ void solve_callback(instance* inst, CPXENVptr env, CPXLPptr lp)
 	// add lazy constraints when there is a new candidate
 	CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
 	if (error = CPXcallbacksetfunc(env, lp, contextid, sec_callback, inst))
-	{
-		printf("CPX error %d\n", error);
-		print_error("CPXcallbacksetfunc() error", ERR_CPLEX);
-	}
+		print_error_ext(ERR_CPLEX, "CPXcallbacksetfunc() Callback, CPX error: %d", error);
 
 	// solve the problem with the callback
 	if (error = CPXmipopt(env, lp))
-	{
-		printf("CPX error %d\n", error);
-		print_error("CPXmipopt() Callback", ERR_CPLEX);
-	}
+		print_error_ext(ERR_CPLEX, "CPXmipopt() Callback, CPX error: %d", error);
 
 }
 
@@ -256,7 +250,8 @@ void solve_symmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
 	modeltype mt = inst->inst_params.model_type;
 	// if the tsptype of the model is not asymmetric, throw error
-	if (model_tsptype(mt) != MODEL_TSP_SYMM) print_error("", ERR_WRONG_TSP_PROCEDURE);
+	if (model_tsptype(mt) != MODEL_TSP_SYMM)
+		print_error(ERR_WRONG_TSP_PROCEDURE, NULL);
 
 	// build symmetric TSP model OR use symmetric TSP procedure
 	switch (model_archetype(mt))
@@ -268,7 +263,7 @@ void solve_symmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 		solve_callback(inst, env, lp);
 		break;
 	default:
-		print_error("symmetric variant", ERR_MODEL_NOT_IMPL);
+		print_error(ERR_MODEL_NOT_IMPL, "symmetric variant");
 	}
 }
 
@@ -306,17 +301,20 @@ void build_model_base_directed(instance* inst, CPXENVptr env, CPXLPptr lp)
 			// define name of variable
 			sprintf(cname, "x(%d,%d)", i + 1, j + 1);
 			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_cname)) print_error("wrong CPXnewcols on x var.s", ERR_CPLEX);
+			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_cname))
+				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
 			// check correctness of xxpos
-			if (CPXgetnumcols(env, lp) - 1 != xxpos(i, j, g->nnodes)) print_error("wrong position for x var.s using function \"xxpos\"", ERR_INCORRECT_FUNCTION);
-
+			if (CPXgetnumcols(env, lp) - 1 != xxpos(i, j, g->nnodes))
+				print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"xxpos\"");
 			// 2 - define x(j,i)
 			// define name of variable
 			sprintf(cname, "x(%d,%d)", j + 1, i + 1);
 			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_cname)) print_error("wrong CPXnewcols on x var.s", ERR_CPLEX);
+			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_cname))
+				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
 			// check correctness of xxpos
-			if (CPXgetnumcols(env, lp) - 1 != xxpos(j, i, g->nnodes)) print_error("wrong position for x var.s using function \"xxpos\"", ERR_INCORRECT_FUNCTION);
+			if (CPXgetnumcols(env, lp) - 1 != xxpos(j, i, g->nnodes))
+				print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"xxpos\"");
 		}
 	}
 	// update number of columns
@@ -393,9 +391,11 @@ void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp)
 		// define name of variable
 		sprintf(cname, "u(%d)", i + 1);
 		// add variable in CPX
-		if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_cname)) print_error("wrong CPXnewcols on u var.s", ERR_CPLEX);
+		if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_cname))
+			print_error(ERR_CPLEX, "wrong CPXnewcols on u var.s");
 		// check correctness of upos
-		if (CPXgetnumcols(env, lp) - 1 != upos(i, g->nnodes)) print_error("wrong position for u var.s using function \"upos\"", ERR_INCORRECT_FUNCTION);
+		if (CPXgetnumcols(env, lp) - 1 != upos(i, g->nnodes))
+			print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for u var.s using function \"upos\"");
 	}
 
 	// ************************ ADD ROWS (CONSTRAINTS) ************************
@@ -460,18 +460,22 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 			// define name of variable
 			sprintf(cname, "y(%d,%d)", i + 1, j + 1);
 			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_cname)) print_error("wrong CPXnewcols on x var.s", ERR_CPLEX);
+			if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_cname))
+				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
 			// check correctness of xxpos
-			if (CPXgetnumcols(env, lp) - 1 != ypos(i, j, g->nnodes)) print_error("wrong position for x var.s using function \"ypos\"", ERR_INCORRECT_FUNCTION);
+			if (CPXgetnumcols(env, lp) - 1 != ypos(i, j, g->nnodes))
+				print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"ypos\"");
 
 			// 2 - define y(j,i)
 			if (i == 0) ub = 0;
 			// define name of variable
 			sprintf(cname, "y(%d,%d)", j + 1, i + 1);
 			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_cname)) print_error("wrong CPXnewcols on x var.s", ERR_CPLEX);
+			if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_cname))
+				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
 			// check correctness of xxpos
-			if (CPXgetnumcols(env, lp) - 1 != ypos(j, i, g->nnodes)) print_error("wrong position for x var.s using function \"ypos\"", ERR_INCORRECT_FUNCTION);
+			if (CPXgetnumcols(env, lp) - 1 != ypos(j, i, g->nnodes))
+				print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"ypos\"");
 		}
 	}
 
@@ -582,7 +586,7 @@ void solve_asymmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
 	modeltype mt = inst->inst_params.model_type;
 	// if the tsptype of the model is not asymmetric, throw error
-	if (model_tsptype(mt) != MODEL_TSP_ASYMM) print_error("", ERR_WRONG_TSP_PROCEDURE);
+	if (model_tsptype(mt) != MODEL_TSP_ASYMM) print_error(ERR_WRONG_TSP_PROCEDURE, NULL);
 
 	// build asymmetric TSP model
 	switch (model_archetype(mt))
@@ -594,7 +598,7 @@ void solve_asymmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 		build_model_gg(inst, env, lp);
 		break;
 	default:
-		print_error("asymmetric variant", ERR_MODEL_NOT_IMPL);
+		print_error(ERR_MODEL_NOT_IMPL, "asymmetric variant");
 	}
 
 	// add SEC on pairs if needed
@@ -603,9 +607,6 @@ void solve_asymmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 	// solve the model
 	int error = 0;
 	if (error = CPXmipopt(env, lp))
-	{
-		printf("CPX error %d\n", error);
-		print_error("CPXmipopt() Asymmetric", ERR_CPLEX);
-	}
+		print_error_ext(ERR_CPLEX, "CPXmipopt() Asymmetric, CPX error: %d", error);
 
 }

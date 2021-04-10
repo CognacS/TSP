@@ -20,7 +20,8 @@ void mip_add_cut(void* env, void* cbdata,
 	// REFERENCE: https://www.ibm.com/docs/en/icos/12.7.1.0?topic=cpxxcutcallbackadd-cpxcutcallbackadd
 	if (purgeable >= 0) 	// add the cut from a callback
 	{
-		if (CPXcutcallbackadd((CPXCENVptr)env, cbdata, wherefrom, nnz, rhs, sense, index, value, purgeable)) print_error("1", ERR_ADD_CUT);
+		if (CPXcutcallbackadd((CPXCENVptr)env, cbdata, wherefrom, nnz, rhs, sense, index, value, purgeable))
+			print_error(ERR_ADD_CUT, "error on CPXcutcallbackadd (>=0)");
 		return;
 	}
 
@@ -29,39 +30,44 @@ void mip_add_cut(void* env, void* cbdata,
 	// REFERENCE: https://www.ibm.com/docs/en/icos/20.1.0?topic=cpxxaddrows-cpxaddrows
 	if (purgeable == CUT_STATIC) 	// statically add the cut to the original model (with casting (CPXLPptr) cbdata)
 	{
-		if (CPXaddrows((CPXENVptr)env, (CPXLPptr)cbdata, 0, 1, nnz, &rhs, &sense, &izero, index, value, NULL, &cname)) print_error("2", ERR_ADD_CUT);
+		if (CPXaddrows((CPXENVptr)env, (CPXLPptr)cbdata, 0, 1, nnz, &rhs, &sense, &izero, index, value, NULL, &cname))
+			print_error(ERR_ADD_CUT, "error on CPXaddrows (CUT_STATIC)");
 		return;
 	}
 
 	// REFERENCE: https://www.ibm.com/docs/en/icos/20.1.0?topic=cpxxaddlazyconstraints-cpxaddlazyconstraints
 	if (purgeable == CUT_LAZY) 	// add the lazycut cut to the original model (with casting (CPXLPptr) cbdata)
 	{
-		if (CPXaddlazyconstraints((CPXENVptr)env, (CPXLPptr)cbdata, 1, nnz, &rhs, &sense, &izero, index, value, &cname)) print_error("3", ERR_ADD_CUT);
+		if (CPXaddlazyconstraints((CPXENVptr)env, (CPXLPptr)cbdata, 1, nnz, &rhs, &sense, &izero, index, value, &cname))
+			print_error(ERR_ADD_CUT, "error on CPXaddlazyconstraints (CUT_LAZY)");
 		return;
 	}
 
 	// REFERENCE: https://www.ibm.com/docs/en/icos/20.1.0?topic=cpxxaddusercuts-cpxaddusercuts
 	if (purgeable == CUT_USER) 	// add the usercut cut to the original model (with casting (CPXLPptr) cbdata)
 	{
-		if (CPXaddusercuts((CPXENVptr)env, (CPXLPptr)cbdata, 1, nnz, &rhs, &sense, &izero, index, value, &cname)) print_error("4", ERR_ADD_CUT);
+		if (CPXaddusercuts((CPXENVptr)env, (CPXLPptr)cbdata, 1, nnz, &rhs, &sense, &izero, index, value, &cname))
+			print_error(ERR_ADD_CUT, "error on CPXaddusercuts (CUT_USER)");
 		return;
 	}
 
 	// REFERENCE: https://www.ibm.com/docs/en/icos/12.10.0?topic=c-cpxxcutcallbackaddlocal-cpxcutcallbackaddlocal
 	if (purgeable == CUT_CALLBACK_LOCAL) 	// add the usercut *local* to the original model (with casting (CPXLPptr) cbdata)
 	{
-		if (CPXcutcallbackaddlocal((CPXCENVptr)env, cbdata, wherefrom, nnz, rhs, sense, index, value)) print_error("local cuts", ERR_ADD_CUT);
+		if (CPXcutcallbackaddlocal((CPXCENVptr)env, cbdata, wherefrom, nnz, rhs, sense, index, value))
+			print_error(ERR_ADD_CUT, "error on CPXcutcallbackaddlocal (CUT_CALLBACK_LOCAL)");
 		return;
 	}
 
 	// REFERENCE: https://www.ibm.com/docs/es/cofz/12.10.0?topic=c-cpxxcallbackrejectcandidate-cpxcallbackrejectcandidate
 	if (purgeable == CUT_CALLBACK_REJECT) 	// add the usercut *local* to the original model (with casting (CPXLPptr) cbdata)
 	{
-		if (CPXcallbackrejectcandidate((CPXCALLBACKCONTEXTptr)env, 1, nnz, &rhs, &sense, &izero, index, value)) print_error("local cuts", ERR_ADD_CUT);
+		if (CPXcallbackrejectcandidate((CPXCALLBACKCONTEXTptr)env, 1, nnz, &rhs, &sense, &izero, index, value))
+			print_error(ERR_ADD_CUT, "error on CPXcallbackrejectcandidate (CUT_CALLBACK_REJECT)");
 		return;
 	}
 
-	print_error("purgeable flag not known", ERR_ADD_CUT);
+	print_error(ERR_ADD_CUT, "purgeable flag unknown");
 }
 
 void mip_timelimit(CPXENVptr env, double timelimit, instance* inst)
