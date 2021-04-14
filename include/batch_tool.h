@@ -15,9 +15,9 @@
 // *********** definitions for csv file ***********
 typedef enum
 {
-	ROWS,
-	COLS,
-	CELL
+	CSV_ROWS,
+	CSV_COLS,
+	CSV_CELL
 } csvaxis;
 
 typedef struct
@@ -32,9 +32,11 @@ typedef struct
 
 typedef struct
 {
+	int started;
 	int end_reached;
 	int params_num;
 	int* indices;
+	int last_incridx;
 	gridparam* grid_params;
 } grid;
 

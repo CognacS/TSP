@@ -1,7 +1,53 @@
 #include "../file_parser.h"
 
+void random_instance(graph* g, char* line)
+{
+	// copy the line
+	char copyline[50];
+	strcpy(copyline, line);
+
+	// parse the line
+	char* start = copyline + 3;
+
+	// get the random seed and set it
+	char* seed_str = strtok(start, ",");
+	srand((unsigned)atoi(seed_str));
+
+	// get the number of nodes
+	char* nnodes_str = strtok(NULL, ")");
+	g->nnodes = atoi(nnodes_str);
+	calloc_s(g->xcoord, g->nnodes, double);
+	calloc_s(g->ycoord, g->nnodes, double);
+
+	// set distance type
+	g->distance_type = RI_DIST_TYPE;
+
+	// generate random nodes inside the square
+	for (int i = 0; i < g->nnodes; i++)
+	{
+		g->xcoord[i] = ((double)rand() / RAND_MAX) * RI_X_SIZE + RI_X_MIN;
+		g->ycoord[i] = ((double)rand() / RAND_MAX) * RI_Y_SIZE + RI_Y_MIN;
+	}
+
+}
+
 void read_input(instance* inst)
 {
+	// get the instance graph
+	graph* g = &inst->inst_graph;
+	g->nnodes = -1;
+	g->tr_xcoord = NULL;
+	g->tr_ycoord = NULL;
+
+	// if the input instance is a random instance,
+	if (inst->inst_params.input_file[0] == 'R' &&
+		inst->inst_params.input_file[1] == 'I' &&
+		inst->inst_params.input_file[2] == '(')
+	{
+		random_instance(g, inst->inst_params.input_file);
+		return;
+	}
+
 	// open the input file "read-only"
 	char input_file[100];
 	sprintf(input_file, "./data/%s", inst->inst_params.input_file);
@@ -9,14 +55,8 @@ void read_input(instance* inst)
 	// check if the file exists
 	if (fin == NULL) print_error(ERR_INPUT_NOT_EXISTS, input_file);
 
-	// get the instance graph
-	graph* g = &inst->inst_graph;
-	g->nnodes = -1;
-	g->tr_xcoord = NULL;
-	g->tr_ycoord = NULL;
 	// get the instance params
 	params* p = &inst->inst_params;
-
 
 	strings_iterator* iter = build_tsplike_iter(fin);
 
@@ -150,9 +190,9 @@ void read_batchfile(batchtool* bt)
 		{
 			tokencase_1("CSV_AXIS", axis_str)
 			{
-				if (!strncmp(axis_str, "ROWS", 4) != 0) { active_param->axis = ROWS; continue; }
-				if (!strncmp(axis_str, "COLS", 4) != 0) { active_param->axis = COLS; continue; }
-				if (!strncmp(axis_str, "CELL", 4) != 0) { active_param->axis = CELL; continue; }
+				if (!strncmp(axis_str, "ROWS", 4) != 0) { active_param->axis = CSV_ROWS; continue; }
+				if (!strncmp(axis_str, "COLS", 4) != 0) { active_param->axis = CSV_COLS; continue; }
+				if (!strncmp(axis_str, "CELL", 4) != 0) { active_param->axis = CSV_CELL; continue; }
 
 				log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] csv type axis is: %s", axis_str);
 				print_error(ERR_INPUT_FORMAT, "only CSV_AXIS == ROWS, COLS possible");

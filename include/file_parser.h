@@ -18,6 +18,13 @@
 #define BATCH_PARAM_SECTION 3
 #define BATCH_VALUES_SECTION 4
 
+// random instances parameters
+#define RI_X_MIN 0
+#define RI_Y_MIN 0
+#define RI_X_SIZE 1000
+#define RI_Y_SIZE 1000
+#define RI_DIST_TYPE EUC_2D
+
 // *********** definitions for tsp-like file ***********
 typedef struct
 {
@@ -31,7 +38,7 @@ int next_value_tsplike(void* ds, char* out_buffer, int section);
 // constructor
 strings_iterator* build_tsplike_iter(FILE* fin);
 
-
+void random_instance(graph* g, char* line);
 void read_input(instance* inst);
 void read_batchfile(batchtool* bt);
 

@@ -20,7 +20,7 @@ typedef enum
 	ERR_INPUT_PARAM_REPEATED = 		0102,
 	ERR_INPUT_PARAM_DISORDERED =	0103,
 	ERR_INPUT_UNKNOWN_NODE = 		0104,
-	// main errors
+	// optimization errors
 	ERR_OPT_PROCEDURE = 			0200,
 	// cplex errors
 	ERR_CPLEX = 					0300,
@@ -36,7 +36,8 @@ typedef enum
 	ERR_NO_SOLUTION = 				0503,
 	ERR_ADD_CUT = 					0504,
 	// batchtool errors
-	ERR_CSV_CANNNOT_OPEN =			0600
+	ERR_CSV_CANNOT_OPEN =			0600,
+	ERR_CSV_NOT_REORDERED =			0601
 } err_code;
 
 
@@ -45,6 +46,9 @@ typedef enum
 {
 	WARN_WRONG_DATASTRUCT =			0000,	// unknown data structure (inst, graph, etc...)
 	WARN_IGNORED_INPUT_FILE_PARAM = 0100,	// unknown parameter of input file to be skipped
+	// optimization warnings
+	WARN_EXPIRED_TIMELIMIT =		0200,
+	// general purpose
 	WARN_UNKNOWN_WARN =				0403
 } warn_code;
 
@@ -74,7 +78,8 @@ static const numbered_str error_msgs[] =
 	{ERR_MODEL_INCONSISTENT,		"generic inconsistency: "},
 	{ERR_NO_SOLUTION,				"no solution available"},
 	{ERR_ADD_CUT,					"error encountered in mip_add_cut():"},
-	{ERR_CSV_CANNNOT_OPEN,			"could not open output CSV file:"},
+	{ERR_CSV_CANNOT_OPEN,			"could not open output CSV file:"},
+	{ERR_CSV_NOT_REORDERED,			"grid not reordered before opening csv file"},
 	{ERR_UNKNOWN_ERR,				"unknown error:"}
 };
 
@@ -82,6 +87,7 @@ static const numbered_str warn_msgs[] =
 {
 	{WARN_WRONG_DATASTRUCT,			"unknown data structure for logging"},
 	{WARN_IGNORED_INPUT_FILE_PARAM,	"unknown parameter from input file, skipped:"},
+	{WARN_EXPIRED_TIMELIMIT,		"time limit expired:"},
 	{WARN_UNKNOWN_WARN,				"unknown warn:"}
 };
 

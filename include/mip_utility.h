@@ -35,4 +35,6 @@ void mip_add_cut(void* env, void* cbdata,
 
 void mip_timelimit(CPXENVptr env, double timelimit, instance* inst);
 
+int time_limit_expired(instance* inst);
+
 #endif

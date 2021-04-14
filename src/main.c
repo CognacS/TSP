@@ -22,22 +22,55 @@ int main(int argc, char **argv)
 	// if a batch file was given, automatize runs
 	if (strlen(inst.inst_params.batch_file) > 0)
 	{
+
+		// setup csv_batchfile
+		csv_batchtool csv_bt;
+		csv_bt.reordered = 0;
+		strcpy(csv_bt.csv_file, "output.csv");
+
 		// initialize batch tool
-		batchtool bt;
-		strcpy(bt.input_file, inst.inst_params.batch_file);
+		batchtool* bt = &csv_bt.bt;
+		strcpy(bt->input_file, inst.inst_params.batch_file);
 		// read batch file
-		read_batchfile(&bt);
+		read_batchfile(bt);
+		log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] Parsed batch file: %s", bt->input_file);
+
 		// reorder grid to be used for printing on csv
-		reorder_grid_csv(&bt.p_grid);
+		reorder_grid_csv(&csv_bt);
+
+		// open csv file
+		open_file_csv(&csv_bt);
+		log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] Opened output file: %s", csv_bt.csv_file);
 
 		// iterate through each instance
-		restart_grid(&bt.p_grid);
-		while (next_inst_config(&bt.p_grid, &inst))
+		restart_grid(&bt->p_grid);
+		log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] ############ STARTING BATCH PROCEDURE ############ ");
+		while (next_inst_config(&bt->p_grid, &inst))
 		{
-			log_datastruct(&inst.inst_params, TYPE_INST, VERBOSITY, LOGLVL_DEBUG);
+			// log current instance
+			log_line(VERBOSITY, LOGLVL_MSG, "[MESSAGE] Now solving:");
+			log_datastruct(&inst.inst_params, TYPE_PARAM, VERBOSITY, LOGLVL_MSG);
+
+			// read the input file
+			read_input(&inst);
+
+			// solve current instance
+			opt_result out_code = TSPopt(&inst, 0);
+			double exec_time = inst.inst_global_data.texec;
+
+			// register solution time
+			if (out_code == OPT_OK)
+				log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] Solved in %f sec.s", exec_time);
+			register_time_csv(&csv_bt, exec_time);
+
+			// cleanup current graph
+			free_graph(&inst.inst_graph);
 		}
 
-		free_batchtool(&bt);
+		// close csv file
+		close_file_csv(&csv_bt);
+		// cleanup
+		free_batchtool(bt);
 	}
 	// *******************************************************************************
 	else
@@ -49,25 +82,27 @@ int main(int argc, char **argv)
 		// print instance if needed
 		log_datastruct(&inst, TYPE_INST, VERBOSITY, LOGLVL_DEBUG);
 
-		if (TSPopt(&inst)) print_error(ERR_OPT_PROCEDURE, NULL);
-		double t2 = second();
+		opt_result out_code = TSPopt(&inst, 1);
 
-
-		log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] TSP problem solved in %lf sec.s\n", t2 - t1);
-		log_datastruct(&inst.inst_global_data, TYPE_GLOB, VERBOSITY, LOGLVL_MSG);
-
-		double* xstar = inst.inst_global_data.xstar;
-
-		switch (model_tsptype(inst.inst_params.model_type))
+		if (out_code == OPT_OK)
 		{
-		case MODEL_TSP_ASYMM:
-			print_directed_sol(&inst.inst_graph, xstar);
-			plot_tsp_solution_directed(&inst.inst_graph, xstar);
-			break;
-		case MODEL_TSP_SYMM:
-			print_undirected_sol(&inst.inst_graph, xstar);
-			plot_tsp_solution_undirected(&inst.inst_graph, xstar);
-			break;
+
+			log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] TSP problem solved in %lf sec.s\n", inst.inst_global_data.texec);
+			log_datastruct(&inst.inst_global_data, TYPE_GLOB, VERBOSITY, LOGLVL_MSG);
+
+			double* xstar = inst.inst_global_data.xstar;
+
+			switch (model_tsptype(inst.inst_params.model_type))
+			{
+			case MODEL_TSP_ASYMM:
+				print_directed_sol(&inst.inst_graph, xstar);
+				plot_tsp_solution_directed(&inst.inst_graph, xstar);
+				break;
+			case MODEL_TSP_SYMM:
+				print_undirected_sol(&inst.inst_graph, xstar);
+				plot_tsp_solution_undirected(&inst.inst_graph, xstar);
+				break;
+			}
 		}
 
 	}

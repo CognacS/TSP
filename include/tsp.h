@@ -9,8 +9,14 @@
 #include "cpx_models.h"
 #include "chrono.h"
 
+typedef enum
+{
+	OPT_OK,
+	OPT_TL_EXPIRED
+} opt_result;
+
 // optimization functions
-int TSPopt(instance* inst);
+int TSPopt(instance* inst, char getsol);
 
 
 #endif   /* TSP_H_ */ 

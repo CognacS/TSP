@@ -4,23 +4,6 @@ int next_args_config(grid* p_grid, char** new_argv)
 {
 	if (p_grid->end_reached) return 0;
 
-	// **************** INCREASE COORDINATES **************** 
-	int increase = 1;
-	int new_idx = 0;
-	// increase the current index if there is a carry
-	for (int i = 0; increase && i < p_grid->params_num; i++)
-	{
-		new_idx = p_grid->indices[i] + 1;
-		increase = (int)(new_idx / p_grid->grid_params[i].values_num);
-		p_grid->indices[i] = new_idx % p_grid->grid_params[i].values_num;
-	}
-	// stop iterator if the increase carry reached the end
-	if (increase)
-	{
-		p_grid->end_reached = 1;
-		return 0;
-	}
-
 	// ********************** WRITE VALUES ********************** 
 	int curr_index;
 	gridparam* curr_param;
@@ -36,6 +19,20 @@ int next_args_config(grid* p_grid, char** new_argv)
 		new_argv[2 * i] = curr_param->param_name;
 		new_argv[2 * i + 1] = curr_param->values[curr_index];
 	}
+
+	// **************** INCREASE COORDINATES **************** 
+	int increase = 1;
+	int incr_idx = 0;
+	// increase the current index if there is a carry
+	for (incr_idx = 0; increase && incr_idx < p_grid->params_num; incr_idx++)
+	{
+		p_grid->indices[incr_idx] = (p_grid->indices[incr_idx] + 1) % p_grid->grid_params[incr_idx].values_num;
+		increase = p_grid->indices[incr_idx] == 0;
+	}
+	p_grid->last_incridx = incr_idx - 1;
+
+	// stop iterator if the increase carry reached the end
+	if (increase) p_grid->end_reached = 1;
 	
 	return 1;
 }
@@ -60,11 +57,11 @@ int next_inst_config(grid* p_grid, instance* inst)
 void restart_grid(grid* p_grid)
 {
 	p_grid->end_reached = 0;
+	p_grid->started = 0;
 	for (int i = 0; i < p_grid->params_num; i++)
 	{
 		p_grid->indices[i] = 0;
 	}
-	p_grid->indices[0] = -1;
 }
 
 void print_grid(grid* p_grid)

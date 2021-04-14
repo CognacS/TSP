@@ -186,4 +186,8 @@ void free_graph			(graph* inst_graph);
 void free_global_data	(global_data* inst_global);
 void free_instance		(instance* inst);
 
+
+#define free_s(POINTER) \
+free(POINTER); POINTER = NULL
+
 #endif   /* TSP_DATA_H_ */ 

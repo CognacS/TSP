@@ -109,15 +109,15 @@ void fill_inst_default(instance* inst)
 
 void free_graph(graph* inst_graph)
 {
-	free(inst_graph->xcoord);
-	free(inst_graph->ycoord);
-	free(inst_graph->tr_xcoord);
-	free(inst_graph->tr_ycoord);
+	free_s(inst_graph->xcoord);
+	free_s(inst_graph->ycoord);
+	free_s(inst_graph->tr_xcoord);
+	free_s(inst_graph->tr_ycoord);
 }
 
 void free_global_data(global_data* inst_global)
 {
-	free(inst_global->xstar);
+	free_s(inst_global->xstar);
 }
 
 void free_instance(instance* inst)

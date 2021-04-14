@@ -78,3 +78,17 @@ void mip_timelimit(CPXENVptr env, double timelimit, instance* inst)
 	CPXsetdblparam(env, CPX_PARAM_TILIM, residual_time);					// real time
 	CPXsetdblparam(env, CPX_PARAM_DETTILIM, TICKS_PER_SECOND * timelimit);	// ticks
 }
+
+int time_limit_expired(instance* inst)
+{
+	global_data* gd = &inst->inst_global_data;
+	params* p = &inst->inst_params;
+
+	double tspan = second() - gd->tstart;
+	if (tspan > p->timelimit)
+	{
+		print_warn_ext(WARN_EXPIRED_TIMELIMIT, "limit of %10.1lf sec.s expired after %10.1lf sec.s", p->timelimit, tspan);
+		return 1;
+	}
+	return 0;
+}

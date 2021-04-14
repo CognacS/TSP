@@ -215,7 +215,10 @@ void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
 		newcuts = add_sec_on_subtours(env, lp, inst, xstar, -1, CUT_STATIC);
 		log_line_ext(VERBOSITY, LOGLVL_INFO, "Added %d new SEC's", newcuts);
 
-	} while (newcuts);
+		// update time limit
+		mip_timelimit(env, inst->inst_params.timelimit, inst);
+
+	} while (newcuts && !time_limit_expired(inst));
 
 	// CLEANUP
 	free(xstar);
