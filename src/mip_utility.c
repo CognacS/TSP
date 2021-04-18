@@ -1,24 +1,21 @@
 #include "../mip_utility.h"
 
 /*********************************************************************************************************************************************************/
-void mip_add_cut(void* env, void* cbdata,
-	int wherefrom, int nnz, double rhs, char sense,
-	int* index, double* value, char* cname, int purgeable)
+void mip_add_cut(void* env, void* lp,
+	int nnz, double rhs, char sense,
+	int* index, double* value, int purgeable, char* name, int local)
 /*********************************************************************************************************************************************************/
 {
 
 	/*
 		unified driver to add constraints to the LP; usage:
-			mip_add_cut(env,	lp,		-1,			nnz, rhs, sense, index, value, cname,	CUT_STATIC);   			// -1 means static cuts
-			mip_add_cut(env,	lp,		-1,			nnz, rhs, sense, index, value, cname,	CUT_LAZY);   			// -2 means lazy cuts
-			mip_add_cut(env,	lp,		-1,			nnz, rhs, sense, index, value, cname,	CUT_USER);   			// -3 means user cuts
-			mip_add_cut(env,	cbdata, wherefrom,	nnz, rhs, sense, index, value, NULL,	purgeable); 			// from callbacks, user cut
-			mip_add_cut(env,	cbdata, wherefrom,	nnz, rhs, sense, index, value, NULL,	CUT_CALLBACK_LOCAL); 	// from callbacks, local cut
-			mip_add_cut(context,NULL,	-1,			nnz, rhs, sense, index, value, NULL,	CUT_CALLBACK_REJECT);	// from callbacks, reject candidate
+			mip_add_cut(env,	 lp,	nnz, rhs, sense, index, value, name, -1,	CUT_STATIC);   			// add static constr to LP
+			mip_add_cut(env,	 lp,	nnz, rhs, sense, index, value, name, -1,	CUT_LAZY);   			// add lazy constr to LP
+			mip_add_cut(context, NULL,	nnz, rhs, sense, index, value, NULL, local, purgeable); 			// from callbacks, add user cut
+			mip_add_cut(context, NULL,	nnz, rhs, sense, index, value, NULL, -1,	CUT_CALLBACK_REJECT);	// from callbacks, reject candidate
 	*/
 
 	int izero = 0;
-	int local = 0;
 
 	// REFERENCE: https://www.ibm.com/docs/en/icos/20.1.0?topic=c-cpxxcallbackaddusercuts-cpxcallbackaddusercuts
 	if (purgeable >= 0) 	// add the cut from a callback
@@ -31,7 +28,7 @@ void mip_add_cut(void* env, void* cbdata,
 	// REFERENCE: https://www.ibm.com/docs/en/icos/20.1.0?topic=cpxxaddrows-cpxaddrows
 	if (purgeable == CUT_STATIC) 	// statically add the cut to the original model (with casting (CPXLPptr) cbdata)
 	{
-		if (CPXaddrows((CPXENVptr)env, (CPXLPptr)cbdata, 0, 1, nnz, &rhs, &sense, &izero, index, value, NULL, &cname))
+		if (CPXaddrows((CPXENVptr)env, (CPXLPptr)lp, 0, 1, nnz, &rhs, &sense, &izero, index, value, NULL, &name))
 			print_error(ERR_ADD_CUT, "error on CPXaddrows (CUT_STATIC)");
 		return;
 	}
@@ -39,24 +36,8 @@ void mip_add_cut(void* env, void* cbdata,
 	// REFERENCE: https://www.ibm.com/docs/en/icos/20.1.0?topic=cpxxaddlazyconstraints-cpxaddlazyconstraints
 	if (purgeable == CUT_LAZY) 	// add the lazycut cut to the original model (with casting (CPXLPptr) cbdata)
 	{
-		if (CPXaddlazyconstraints((CPXENVptr)env, (CPXLPptr)cbdata, 1, nnz, &rhs, &sense, &izero, index, value, &cname))
+		if (CPXaddlazyconstraints((CPXENVptr)env, (CPXLPptr)lp, 1, nnz, &rhs, &sense, &izero, index, value, &name))
 			print_error(ERR_ADD_CUT, "error on CPXaddlazyconstraints (CUT_LAZY)");
-		return;
-	}
-
-	// REFERENCE: https://www.ibm.com/docs/en/icos/20.1.0?topic=cpxxaddusercuts-cpxaddusercuts
-	if (purgeable == CUT_USER) 	// add the usercut cut to the original model (with casting (CPXLPptr) cbdata)
-	{
-		if (CPXaddusercuts((CPXENVptr)env, (CPXLPptr)cbdata, 1, nnz, &rhs, &sense, &izero, index, value, &cname))
-			print_error(ERR_ADD_CUT, "error on CPXaddusercuts (CUT_USER)");
-		return;
-	}
-
-	// REFERENCE: https://www.ibm.com/docs/en/icos/12.10.0?topic=c-cpxxcutcallbackaddlocal-cpxcutcallbackaddlocal
-	if (purgeable == CUT_CALLBACK_LOCAL) 	// add the usercut *local* to the original model (with casting (CPXLPptr) cbdata)
-	{
-		if (CPXcutcallbackaddlocal((CPXCENVptr)env, cbdata, wherefrom, nnz, rhs, sense, index, value))
-			print_error(ERR_ADD_CUT, "error on CPXcutcallbackaddlocal (CUT_CALLBACK_LOCAL)");
 		return;
 	}
 

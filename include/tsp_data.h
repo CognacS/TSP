@@ -81,10 +81,14 @@ typedef struct {
 #define MODEL_VAR_SEC		0b00000010	// SEC on pairs enabled
 
 // masks for variants in symmetric TSP
-#define MODEL_VAR_NO_SEP	0b00000000	// no separation
-#define MODEL_VAR_CC_SEP	0b00000001	// Concorde separation
-#define MODEL_VAR_STD_REJ	0b00000000	// use standard procedure with DFS for rejects
-#define MODEL_VAR_CC_REJ	0b00000010	// use Concorde procedure for rejects
+#define MODEL_VAR_LO_DEC	0b00000000	// use low decay coefficient
+#define MODEL_VAR_HI_DEC	0b00000001	// use high decay coefficient
+#define MODEL_VAR_SEP_HYP	0b00000000	// use hyperbolic decay
+#define MODEL_VAR_SEP_EXP	0b00000010	// Concorde separation with exp decay
+#define MODEL_VAR_SEP_FIX	0b00000100	// use low decay coefficient
+#define MODEL_VAR_SEP_CUT	0b00000110	// use high decay coefficient
+#define MODEL_VAR_NOSEP		0b00001000	// use Concorde procedure for rejects
+#define MODEL_VAR_SEP_MSK	0b00000110	// get separation prob method bits
 
 /**
 * Type xyz of model to be solved, where:
@@ -105,10 +109,15 @@ typedef enum
 	GG_LZ_SEC =			123,	// GG  lazy constraints + SEC
 
 	BENDERS =			210,	// Benders' method
-	CALLBACK_SN_RS =	220,	// Callback's method with Separation: None, Reject: Standard
-	CALLBACK_SC_RS =	221,	// Callback's method with Separation: Concorde, Reject: Standard
-	CALLBACK_SN_RC =	222,	// Callback's method with Separation: None, Reject: Standard
-	CALLBACK_SC_RC =	223,	// Callback's method with Separation: Concorde, Reject: Concorde
+	CLBK_HYP_LO =		220,	// Callback's method with Separation: Concorde + hyperbolic low decay
+	CLBK_HYP_HI =		221,	// Callback's method with Separation: Concorde + hyperbolic high decay
+	CLBK_EXP_LO =		222,	// Callback's method with Separation: Concorde + exponential low decay
+	CLBK_EXP_HI =		223,	// Callback's method with Separation: Concorde + exponential high decay
+	CLBK_FIX_LO =		224,	// Callback's method with Separation: Concorde + fixed low prob
+	CLBK_FIX_HI =		225,	// Callback's method with Separation: Concorde + fixed high prob
+	CLBK_CUT_LO =		226,	// Callback's method with Separation: Concorde + cutoff low depth
+	CLBK_CUT_HI =		227,	// Callback's method with Separation: Concorde + cutoff high depth
+	CLBK_NOSEP	=		228		// Callback's method without Separation
 } modeltype;
 
 

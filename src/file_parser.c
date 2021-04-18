@@ -2,6 +2,7 @@
 
 void random_instance(graph* g, char* line)
 {
+
 	// copy the line
 	char copyline[50];
 	strcpy(copyline, line);
@@ -38,12 +39,15 @@ void read_input(instance* inst)
 	g->nnodes = -1;
 	g->tr_xcoord = NULL;
 	g->tr_ycoord = NULL;
+	// get the instance params
+	params* p = &inst->inst_params;
 
 	// if the input instance is a random instance,
 	if (inst->inst_params.input_file[0] == 'R' &&
 		inst->inst_params.input_file[1] == 'I' &&
 		inst->inst_params.input_file[2] == '(')
 	{
+		log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] solving instance \"%s\" with model %d", inst->inst_params.input_file, p->model_type);
 		random_instance(g, inst->inst_params.input_file);
 		return;
 	}
@@ -55,9 +59,6 @@ void read_input(instance* inst)
 	// check if the file exists
 	if (fin == NULL) print_error(ERR_INPUT_NOT_EXISTS, input_file);
 
-	// get the instance params
-	params* p = &inst->inst_params;
-
 	strings_iterator* iter = build_tsplike_iter(fin);
 
 	tokenswitch_sect(iter, TOKEN_SECTION)
@@ -66,7 +67,7 @@ void read_input(instance* inst)
 		{
 			tokencase_1("NAME", name)
 			{
-				log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] instance name: \"%s\"", name);
+				log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] instance name: \"%s\"", name);
 
 			}
 			tokencase_1("COMMENT", comment)

@@ -29,18 +29,20 @@ inline int need_sec(modeltype mt) { return model_variant(mt) & MODEL_VAR_SEC; }
 /**
 * takes the model type and returns whether to use Concorde for computing separation
 */
-inline int use_cc_on_sep(modeltype mt) { return model_variant(mt) & MODEL_VAR_CC_SEP; }
-/**
-* takes the model type and returns whether to use Concorde for computing separation
-*/
-inline int use_cc_on_rej(modeltype mt) { return model_variant(mt) & MODEL_VAR_CC_REJ; }
+inline int use_cc_on_sep(modeltype mt) { return !(model_variant(mt) & MODEL_VAR_NOSEP); }
+
+// functions for computing the separation probability
+inline double hyp_decay_prob(int depth, double decay) { return 1.0 / (decay * depth + 1); }
+inline double exp_decay_prob(int depth, double decay) { return exp(-decay * depth); }
+inline double fixed_prob(int depth, double decay) { return decay + 0.2; }
+inline double cutoff_depth(int depth, double decay) { return depth < (decay * 100 + 1); }
 
 /**
-* Unified driver to add constraints to the LP.
+* Unified driver to add constraints/cuts to the LP.
 * */
-void mip_add_cut(void* env, void* cbdata,
-	int wherefrom, int nnz, double rhs, char sense,
-	int* index, double* value, char* cname, int purgeable);
+void mip_add_cut(void* env, void* lp,
+		int nnz, double rhs, char sense,
+		int* index, double* value, int purgeable, char* name, int local);
 
 void mip_timelimit(CPXENVptr env, double timelimit, instance* inst);
 

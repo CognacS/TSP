@@ -13,8 +13,8 @@ void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
 	// define constants
 	double zero = 0.0;
 	char binary = 'B';
-	char cname[100];
-	char* ptr_cname = cname;
+	char name[100];
+	char* ptr_cname = name;
 	// define bounds of binary variables
 	double lb = 0.0;
 	double ub = 1.0;
@@ -26,7 +26,7 @@ void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
 		for (int j = i + 1; j < g->nnodes; j++)
 		{
 			// define name of variable
-			sprintf(cname, "x(%d,%d)", i + 1, j + 1);
+			sprintf(name, "x(%d,%d)", i + 1, j + 1);
 			// define coefficients
 			double obj = dist(i, j, g); // cost == distance 
 			// add variable in CPX
@@ -54,7 +54,7 @@ void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
 	for (int h = 0; h < g->nnodes; h++)  // degree constraints
 	{
 		// define name of constraint
-		sprintf(cname, "degree(%d)", h + 1);
+		sprintf(name, "degree(%d)", h + 1);
 
 		nnz = 0;
 		// fill the added constraint
@@ -68,7 +68,7 @@ void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
 			nnz++;
 		}
 
-		mip_add_cut(env, lp, -1, nnz, rhs, sense, index, value, cname, CUT_STATIC);
+		mip_add_cut(env, lp, nnz, rhs, sense, index, value, CUT_STATIC, name, -1);
 	}
 	// CLEANUP
 	free(index);
@@ -111,7 +111,7 @@ static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG context
 			print_error(ERR_CPLEX, "CPXcallbackgetcandidatepoint error");
 		// execute rejection procedure
 		if (cb_inst->rej_procedure)
-			cb_inst->rej_procedure(context, NULL, inst, cb_inst->args, xstar, -1, CUT_CALLBACK_REJECT, 0);
+			cb_inst->rej_procedure(context, NULL, inst, cb_inst->args, xstar, CUT_CALLBACK_REJECT, 0, -1);
 		else
 			print_error(ERR_CB_UNDEF_PROCEDURE, "candidate");
 		// CLEANUP
@@ -123,18 +123,14 @@ static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG context
 		// randomly choose whether to apply separation or not
 		CPXcallbackgetinfoint(context, CPXCALLBACKINFO_NODEDEPTH, &cpx_depth);
 		safe_rand(&rval);
-		double decay_h = 0.3;
-		double decay_e = 0.1;
-		double decay_s = 0.1;
-		double decay_r = 0.3;
-		double hyperbolic_decay = 1.0 / (decay_h * cpx_depth + 1);
-		double exponential_decay = exp(-decay_e * cpx_depth);
-		double sigmoid_decay = 2.0 / (exp(decay_s * cpx_depth) + 1);
-		double relu_decay = max(-0.1 * decay_r * cpx_depth + 1, 0);
-		printf("%d -> %f, %f, %f, %f\n", cpx_depth, hyperbolic_decay, exponential_decay, sigmoid_decay, relu_decay);
-		if (rval < (1 - relu_decay)) break;
 
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Entered callback relaxation at node %d", cpx_node);
+		if (rval < (1 - cb_inst->prob_function(cpx_depth, cb_inst->prob_decay)))
+		{
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Skipped callback relaxation at node %d, depth %d", cpx_node, cpx_depth);
+			break;
+		}
+
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Entered callback relaxation at node %d, depth %d", cpx_node, cpx_depth);
 
 		// allocate xstar
 		arr_malloc_s(xstar, m->ncols, double);
@@ -143,7 +139,7 @@ static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG context
 			print_error(ERR_CB_UNDEF_PROCEDURE, "CPXcallbackgetrelaxationpoint error");
 		// execute separation procedure
 		if (cb_inst->sep_procedure)
-			cb_inst->sep_procedure(context, NULL, inst, cb_inst->args, xstar, -1, CPX_USECUT_FILTER, CUT_FLAGS_MINCUT_ENABLED);
+			cb_inst->sep_procedure(context, NULL, inst, cb_inst->args, xstar, CPX_USECUT_FILTER, CUT_FLAGS_MINCUT_ENABLED, 0);
 		else
 			print_error(ERR_CB_UNDEF_PROCEDURE, "candidate");
 		// CLEANUP
@@ -159,7 +155,9 @@ static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG context
 /* **************************************************************************************************
 *				ADD SUBTOUR ELIMINATION CONSTRAINTS ON AN INFEASABLE SOLUTION
 ************************************************************************************************** */
-int add_sec_on_subtours(void* env, void* cbdata, instance* inst, void* args, double* xstar, int wherefrom, int purgeable, int flags)
+int add_sec_on_subtours(void* env, void* lp,
+	instance* inst, void* args, double* xstar,
+	int purgeable, int flags, int local)
 {
 	// extract structures
 	graph* g = &inst->inst_graph;
@@ -217,7 +215,8 @@ int add_sec_on_subtours(void* env, void* cbdata, instance* inst, void* args, dou
 			visitedcomp[comp[h++]] = 1;
 
 			// add SEC
-			mip_add_cut(env, cbdata, wherefrom, nnz, rhs, sense, index, value, "SEC", purgeable);
+			mip_add_cut(env, lp, nnz, rhs, sense, index, value, purgeable, "SEC", -1);
+			log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "Added std SEC with %d coefficients", nnz);
 		}
 
 		// CLEAN UP SEC ARRAYS
@@ -238,7 +237,9 @@ int add_sec_on_subtours(void* env, void* cbdata, instance* inst, void* args, dou
 /* **************************************************************************************************
 *				ADD SUBTOUR ELIMINATION CONSTRAINTS USING CONCORDE
 ************************************************************************************************** */
-int CC_add_sec_on_subtours(void* env, void* cbdata, instance* inst, void* args, double* xstar, int wherefrom, int purgeable, int flags)
+int CC_add_sec_on_subtours(void* env, void* lp,
+	instance* inst, void* args, double* xstar,
+	int purgeable, int flags, int local)
 {
 	// extract structures
 	graph* g = &inst->inst_graph;
@@ -285,11 +286,13 @@ int CC_add_sec_on_subtours(void* env, void* cbdata, instance* inst, void* args, 
 					nnz++;
 				}
 			}
-			// increase the position in comps
-			comps_pos += compscount[c];
 
 			// add SEC
-			mip_add_cut(env, cbdata, wherefrom, nnz, rhs, sense, index, value, "SEC", purgeable);
+			mip_add_cut(env, lp, nnz, rhs, sense, index, value, purgeable, "SEC", 0);
+			log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "Added cc SEC with %d coeffs, compsize %d", nnz, compscount[c]);
+
+			// increase the position in comps
+			comps_pos += compscount[c];
 		}
 
 		free(value);
@@ -304,6 +307,7 @@ int CC_add_sec_on_subtours(void* env, void* cbdata, instance* inst, void* args, 
 		concorde_instance cc_inst;
 		cc_inst.inst = inst;
 		cc_inst.context = (CPXCALLBACKCONTEXTptr)env;
+		cc_inst.local = 0;
 		arr_malloc_s(cc_inst.value, m->ncols, double);
 		arr_malloc_s(cc_inst.index, m->ncols, int);
 		calloc_s(cc_inst.labels, g->nnodes, int);
@@ -351,23 +355,21 @@ int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args)
 			labels[cut[i]] = 1;
 		}
 
-		// make the indices for each edge in the cut
-		for (int i = 0; i < cutcount; i++)
+		for (int j = 0; j < g->nnodes; j++)
 		{
-			for (int j = 0; j < g->nnodes; j++)
-			{
-				// if the node j is not inside S
-				if (labels[j] == 0)
+			// if node j is not inside S
+			if (labels[j] == 0)
+				for (int i = 0; i < cutcount; i++)
 				{
 					index[nnz] = xpos(cut[i], j, g->nnodes);
 					value[nnz] = 1.0;
 					nnz++;
 				}
-			}
 		}
 
 		// add cut
-		mip_add_cut(cc_inst->context, NULL, -1, nnz, rhs, sense, index, value, NULL, CPX_USECUT_FILTER);
+		mip_add_cut(cc_inst->context, NULL, nnz, rhs, sense, index, value, CPX_USECUT_FILTER, NULL, cc_inst->local);
+		log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "Added mincut with %d coeffs, |S| = %d, cutval = %f", nnz, cutcount, cutval);
 
 		// reset labels for the next call
 		for (int i = 0; i < cutcount; i++)
@@ -410,7 +412,7 @@ void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
 			print_error_ext(ERR_CPLEX, "CPXgetx() Benders, CPX error: %d", error);
 
 		// produce new cuts on violated constraints
-		newcuts = add_sec_on_subtours(env, lp, inst, NULL, xstar, -1, CUT_STATIC, 0);
+		newcuts = add_sec_on_subtours(env, lp, inst, NULL, xstar, CUT_STATIC, 0, -1);
 		log_line_ext(VERBOSITY, LOGLVL_INFO, "Added %d new SEC's", newcuts);
 
 		// update time limit
@@ -439,13 +441,13 @@ void solve_callback(instance* inst, CPXENVptr env, CPXLPptr lp)
 	// ********************** SETUP CALLBACK STRUCTURES **********************
 	// make flags for model choice
 	int use_cc_sep = use_cc_on_sep(mt);
-	int use_cc_rej = use_cc_on_rej(mt);
+	//int use_cc_rej = use_cc_on_rej(mt);
 
 	void* args = NULL;
 
 	// if separation or rejection use CC method, then construct elist to be shared
 	// as argument
-	if (use_cc_sep || use_cc_rej)
+	if (use_cc_sep)
 	{
 		int nedges = nnodes * (nnodes - 1) / 2;
 		int* elist;	arr_malloc_s(elist, 2 * nedges, int);
@@ -466,10 +468,38 @@ void solve_callback(instance* inst, CPXENVptr env, CPXLPptr lp)
 	cb_inst.inst = inst;
 	cb_inst.args = args;
 	cb_inst.sep_procedure = use_cc_sep ? CC_add_sec_on_subtours : NULL;
-	cb_inst.rej_procedure = use_cc_rej ? CC_add_sec_on_subtours : add_sec_on_subtours;
+	//cb_inst.rej_procedure = use_cc_rej ? CC_add_sec_on_subtours : add_sec_on_subtours;
+	cb_inst.rej_procedure = add_sec_on_subtours;
+
+	if (use_cc_sep)
+	{
+		double decay = which_decay(mt);
+		cb_inst.prob_decay = decay;
+		switch (model_variant(mt) & MODEL_VAR_SEP_MSK)
+		{
+		case MODEL_VAR_SEP_HYP:
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Using hyperbolic decay %f", decay);
+			cb_inst.prob_function = hyp_decay_prob;
+			break;
+		case MODEL_VAR_SEP_EXP:
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Using exponential decay %f", decay);
+			cb_inst.prob_function = exp_decay_prob;
+			break;
+		case MODEL_VAR_SEP_FIX:
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Using fixed probability %f", decay + 0.2);
+			cb_inst.prob_function = fixed_prob;
+			break;
+		case MODEL_VAR_SEP_CUT:
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Using cutoff at depth %f", decay * 100 + 1);
+			cb_inst.prob_function = cutoff_depth;
+			break;
+		}
+	}
+	else log_line(VERBOSITY, LOGLVL_INFO, "[INFO] Separation disabled");
+
 
 	// ********************** SETUP CALLBACK FUNCTION **********************
-	// add lazy constraints when there is a new candidate
+	// add constraints when there is a new candidate
 	CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
 	// choose to use or not the additional separation
 	if (use_cc_sep) contextid = contextid | CPX_CALLBACKCONTEXT_RELAXATION;
@@ -527,8 +557,8 @@ void build_model_base_directed(instance* inst, CPXENVptr env, CPXLPptr lp)
 	// define constants
 	double zero = 0.0;
 	char binary = 'B';
-	char cname[100];
-	char* ptr_cname = cname;
+	char name[100];
+	char* ptr_name = name;
 	
 	// define bounds of binary variables
 	double lb = 0.0;
@@ -545,18 +575,18 @@ void build_model_base_directed(instance* inst, CPXENVptr env, CPXLPptr lp)
 
 			// 1 - define x(i,j)
 			// define name of variable
-			sprintf(cname, "x(%d,%d)", i + 1, j + 1);
+			sprintf(name, "x(%d,%d)", i + 1, j + 1);
 			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_cname))
+			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_name))
 				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
 			// check correctness of xxpos
 			if (CPXgetnumcols(env, lp) - 1 != xxpos(i, j, g->nnodes))
 				print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"xxpos\"");
 			// 2 - define x(j,i)
 			// define name of variable
-			sprintf(cname, "x(%d,%d)", j + 1, i + 1);
+			sprintf(name, "x(%d,%d)", j + 1, i + 1);
 			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_cname))
+			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_name))
 				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
 			// check correctness of xxpos
 			if (CPXgetnumcols(env, lp) - 1 != xxpos(j, i, g->nnodes))
@@ -596,12 +626,12 @@ void build_model_base_directed(instance* inst, CPXENVptr env, CPXLPptr lp)
 		}
 		// OUTGOING CONSTRAINT
 		// define name of constraints
-		sprintf(cname, "degree_out(%d)", h + 1);
-		mip_add_cut(env, lp, -1, nnz, rhs, sense, index_out, value_out, cname, CUT_STATIC);
+		sprintf(name, "degree_out(%d)", h + 1);
+		mip_add_cut(env, lp, nnz, rhs, sense, index_out, value_out, CUT_STATIC, name, -1);
 		// INGOING CONSTRAINT
 		// define name of constraint
-		sprintf(cname, "degree_in(%d)", h + 1);
-		mip_add_cut(env, lp, -1, nnz, rhs, sense, index_in, value_in, cname, CUT_STATIC);
+		sprintf(name, "degree_in(%d)", h + 1);
+		mip_add_cut(env, lp, nnz, rhs, sense, index_in, value_in, CUT_STATIC, name, -1);
 	}
 
 	// CLEANUP
@@ -622,22 +652,22 @@ void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp)
 	graph* g = &inst->inst_graph;
 	modeltype mt = inst->inst_params.model_type;
 	// define name of constraints
-	char cname[100];
+	char name[100];
 
 	// define bounds of integer values
 	double lb = 0.0;
 	double ub = g->nnodes - 2;
 	char integer = 'I';
-	char* ptr_cname = cname;
+	char* ptr_name = name;
 
 	// ************************ ADD COLUMNS (VARIABLES) ************************
 	// add integer var.s u(i) for all i but the first node
 	for (int i = 1; i < g->nnodes; i++)
 	{
 		// define name of variable
-		sprintf(cname, "u(%d)", i + 1);
+		sprintf(name, "u(%d)", i + 1);
 		// add variable in CPX
-		if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_cname))
+		if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_name))
 			print_error(ERR_CPLEX, "wrong CPXnewcols on u var.s");
 		// check correctness of upos
 		if (CPXgetnumcols(env, lp) - 1 != upos(i, g->nnodes))
@@ -661,7 +691,7 @@ void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp)
 		for (int j = 1; j < g->nnodes; j++) // excluding node 0 
 		{
 			if (i == j) continue;
-			sprintf(cname, "u-consistency for arc (%d,%d)", i + 1, j + 1);
+			sprintf(name, "u-consistency for arc (%d,%d)", i + 1, j + 1);
 			index[0] = upos(i, g->nnodes);
 			value[0] = 1.0;
 			index[1] = upos(j, g->nnodes);
@@ -670,7 +700,7 @@ void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp)
 			value[2] = big_M;
 
 			// add constraint
-			mip_add_cut(env, lp, -1, nnz, rhs, sense, index, value, cname, constr_type);
+			mip_add_cut(env, lp, nnz, rhs, sense, index, value, constr_type, name, -1);
 		}
 	}
 }
@@ -687,10 +717,10 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 	graph* g = &inst->inst_graph;
 	modeltype mt = inst->inst_params.model_type;
 
-	char cname[100];
+	char name[100];
 
 	char integer = 'I';
-	char* ptr_cname = cname;
+	char* ptr_name = name;
 
 	// ************************ ADD COLUMNS (VARIABLES) ************************
 	// add integer var.s 0<=y(i, j)<=n-2 for all i=/=j (0<=y(i, 1)<=0)
@@ -704,9 +734,9 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 
 			// 1 - define y(i,j)
 			// define name of variable
-			sprintf(cname, "y(%d,%d)", i + 1, j + 1);
+			sprintf(name, "y(%d,%d)", i + 1, j + 1);
 			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_cname))
+			if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_name))
 				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
 			// check correctness of xxpos
 			if (CPXgetnumcols(env, lp) - 1 != ypos(i, j, g->nnodes))
@@ -715,9 +745,9 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 			// 2 - define y(j,i)
 			if (i == 0) ub = 0;
 			// define name of variable
-			sprintf(cname, "y(%d,%d)", j + 1, i + 1);
+			sprintf(name, "y(%d,%d)", j + 1, i + 1);
 			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_cname))
+			if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_name))
 				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
 			// check correctness of xxpos
 			if (CPXgetnumcols(env, lp) - 1 != ypos(j, i, g->nnodes))
@@ -735,12 +765,12 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 	// add static/lazy constraints (n-1) * x_1j - 1.0 * y_1j == 0 for each j but the first node
 	for (int j = 1; j < g->nnodes; j++)
 	{
-		sprintf(cname, "commodity quantity on arc (%d,%d)", 1, j + 1);
+		sprintf(name, "commodity quantity on arc (%d,%d)", 1, j + 1);
 		index[0] = xxpos(0, j, g->nnodes);
 		value[0] = g->nnodes - 1.0;
 		index[1] = ypos(0, j, g->nnodes);
 		value[1] = -1.0;
-		mip_add_cut(env, lp, -1, nnz, rhs, sense, index, value, cname, constr_type);
+		mip_add_cut(env, lp, nnz, rhs, sense, index, value, constr_type, name, -1);
 	}
 
 	sense = 'G';
@@ -751,12 +781,12 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 		{
 			if (i == j) continue;
 
-			sprintf(cname, "commodity quantity on arc (%d,%d)", i + 1, j + 1);
+			sprintf(name, "commodity quantity on arc (%d,%d)", i + 1, j + 1);
 			index[0] = xxpos(i, j, g->nnodes);
 			value[0] = g->nnodes - 2.0;
 			index[1] = ypos(i, j, g->nnodes);
 			value[1] = -1.0;
-			mip_add_cut(env, lp, -1, nnz, rhs, sense, index, value, cname, constr_type);
+			mip_add_cut(env, lp, nnz, rhs, sense, index, value, constr_type, name, -1);
 		}
 	}
 	
@@ -772,7 +802,7 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 	for (int h = 1; h < g->nnodes; h++)
 	{
 		// define name of constraint
-		sprintf(cname, "flow(%d)", h + 1);
+		sprintf(name, "flow(%d)", h + 1);
 
 		int arr_idx = 0;
 		// fill the added constraints
@@ -788,7 +818,7 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 			value_flow[arr_idx+g->nnodes-1] = -1.0;
 			arr_idx++;
 		}
-		mip_add_cut(env, lp, -1, nnz, rhs, sense, index_flow, value_flow, cname, constr_type);
+		mip_add_cut(env, lp, nnz, rhs, sense, index_flow, value_flow, constr_type, name, -1);
 	}
 
 	free(index_flow);
@@ -805,7 +835,7 @@ void add_sec2_asymmetric(instance* inst, CPXENVptr env, CPXLPptr lp)
 	graph* g = &inst->inst_graph;
 
 	// add lazy constraints 1.0 * x_ij + 1.0 * x_ji <= 1, for each arc (i,j) with i < j
-	char cname[100];
+	char name[100];
 	double rhs = 1.0;
 	char sense = 'L';
 	int nnz = 2;
@@ -815,12 +845,12 @@ void add_sec2_asymmetric(instance* inst, CPXENVptr env, CPXLPptr lp)
 	{
 		for (int j = i + 1; j < g->nnodes; j++)
 		{
-			sprintf(cname, "SEC on node pair (%d,%d)", i + 1, j + 1);
+			sprintf(name, "SEC on node pair (%d,%d)", i + 1, j + 1);
 			index[0] = xxpos(i, j, g->nnodes);
 			value[0] = 1.0;
 			index[1] = xxpos(j, i, g->nnodes);
 			value[1] = 1.0;
-			mip_add_cut(env, lp, -1, nnz, rhs, sense, index, value, cname, CUT_LAZY);
+			mip_add_cut(env, lp, nnz, rhs, sense, index, value, CUT_LAZY, name, -1);
 		}
 	}
 }
