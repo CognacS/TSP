@@ -10,6 +10,7 @@
 #define LOGLVL_ERROR		10
 #define LOGLVL_WARN			20
 #define LOGLVL_MSG			40
+#define LOGLVL_PLOTSOL		45
 #define LOGLVL_INFO			50
 #define LOGLVL_DEBUG		70
 #define LOGLVL_PEDANTIC		90

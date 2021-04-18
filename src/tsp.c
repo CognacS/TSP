@@ -21,6 +21,11 @@ int TSPopt(instance* inst, char getsol)
 	CPXsetintparam(env, CPX_PARAM_NODELIM, p->max_nodes);
 	CPXsetdblparam(env, CPX_PARAM_EPGAP, p->cutoff);
 	CPXsetdblparam(env, CPX_PARAM_EPINT, 0.0);
+	if (VERBOSITY >= LOGLVL_CPLEXLOG)
+	{
+		CPXsetintparam(env, CPX_PARAM_SCRIND, CPX_ON);
+		CPXsetintparam(env, CPXPARAM_MIP_Display, 5);
+	}
 
 	// configure starting parameters
 	global_data* gd = &inst->inst_global_data;

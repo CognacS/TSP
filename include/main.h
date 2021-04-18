@@ -2,6 +2,7 @@
 
 #define MAIN_H_
 
+#include "random.h"
 #include "tsp.h"
 #include "log.h"
 #include "error.h"

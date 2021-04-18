@@ -74,11 +74,17 @@ typedef struct {
 #define	MODEL_SY_BEND 1
 #define MODEL_SY_CLBCK 2
 
-// masks for variants
-#define MODEL_VAR_STAT		0b00000000
-#define MODEL_VAR_LZ		0b00000001
-#define MODEL_VAR_NO_SEC	0b00000000
-#define MODEL_VAR_SEC		0b00000010
+// masks for variants in asymmetric TSP
+#define MODEL_VAR_STAT		0b00000000	// static constraints
+#define MODEL_VAR_LZ		0b00000001	// lazy constraints
+#define MODEL_VAR_NO_SEC	0b00000000	// SEC on pairs disabled
+#define MODEL_VAR_SEC		0b00000010	// SEC on pairs enabled
+
+// masks for variants in symmetric TSP
+#define MODEL_VAR_NO_SEP	0b00000000	// no separation
+#define MODEL_VAR_CC_SEP	0b00000001	// Concorde separation
+#define MODEL_VAR_STD_REJ	0b00000000	// use standard procedure with DFS for rejects
+#define MODEL_VAR_CC_REJ	0b00000010	// use Concorde procedure for rejects
 
 /**
 * Type xyz of model to be solved, where:
@@ -88,18 +94,21 @@ typedef struct {
 */
 typedef enum
 {
-	MTZ_ST =		110,	// MTZ static constraints
-	MTZ_LZ =		111,	// MTZ lazy constraints
-	MTZ_ST_SEC =	112,	// MTZ static constraints + SEC
-	MTZ_LZ_SEC =	113,	// MTZ lazy constraints + SEC
+	MTZ_ST =			110,	// MTZ static constraints
+	MTZ_LZ =			111,	// MTZ lazy constraints
+	MTZ_ST_SEC =		112,	// MTZ static constraints + SEC
+	MTZ_LZ_SEC =		113,	// MTZ lazy constraints + SEC
 
-	GG_ST =			120,	// GG  static constraints
-	GG_LZ =			121,	// GG  lazy constraints
-	GG_ST_SEC =		122,	// GG  static constraints + SEC
-	GG_LZ_SEC =		123,	// GG  lazy constraints + SEC
+	GG_ST =				120,	// GG  static constraints
+	GG_LZ =				121,	// GG  lazy constraints
+	GG_ST_SEC =			122,	// GG  static constraints + SEC
+	GG_LZ_SEC =			123,	// GG  lazy constraints + SEC
 
-	BENDERS =		210,	// Benders' method
-	CALLBACK =		220		// Callback's method
+	BENDERS =			210,	// Benders' method
+	CALLBACK_SN_RS =	220,	// Callback's method with Separation: None, Reject: Standard
+	CALLBACK_SC_RS =	221,	// Callback's method with Separation: Concorde, Reject: Standard
+	CALLBACK_SN_RC =	222,	// Callback's method with Separation: None, Reject: Standard
+	CALLBACK_SC_RC =	223,	// Callback's method with Separation: Concorde, Reject: Concorde
 } modeltype;
 
 

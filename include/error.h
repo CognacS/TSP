@@ -29,15 +29,19 @@ typedef enum
 	ERR_INVALID_FUNC_ARGS = 		0401,
 	ERR_NO_MEM_FOR_ALLOC = 			0402,
 	ERR_UNKNOWN_ERR =				0403,
+	ERR_RNG_ERR =					0404,
 	// models errors
 	ERR_WRONG_TSP_PROCEDURE = 		0500,
 	ERR_MODEL_NOT_IMPL = 			0501,
 	ERR_MODEL_INCONSISTENT = 		0502,
 	ERR_NO_SOLUTION = 				0503,
 	ERR_ADD_CUT = 					0504,
+	ERR_CB_UNDEF_PROCEDURE =		0505,
 	// batchtool errors
 	ERR_CSV_CANNOT_OPEN =			0600,
-	ERR_CSV_NOT_REORDERED =			0601
+	ERR_CSV_NOT_REORDERED =			0601,
+	// concorde errors
+	ERR_CONCORDE =					0700,
 } err_code;
 
 
@@ -73,13 +77,16 @@ static const numbered_str error_msgs[] =
 	{ERR_INCORRECT_FUNCTION_IMPL,	"function error:"},
 	{ERR_INVALID_FUNC_ARGS,			"invalid input arguments in function: "},
 	{ERR_NO_MEM_FOR_ALLOC,			"NULL pointer returned when allocating array:"},
+	{ERR_RNG_ERR,					"the Random Number Generator procedure returned an error"},
 	{ERR_WRONG_TSP_PROCEDURE,		"wrong TSP solver procedure used for TSP variant"},
 	{ERR_MODEL_NOT_IMPL,			"the requested model was not implemented:"},
 	{ERR_MODEL_INCONSISTENT,		"generic inconsistency: "},
 	{ERR_NO_SOLUTION,				"no solution available"},
 	{ERR_ADD_CUT,					"error encountered in mip_add_cut():"},
+	{ERR_CB_UNDEF_PROCEDURE,		"undefined procedure in callback, check contextid for:"},
 	{ERR_CSV_CANNOT_OPEN,			"could not open output CSV file:"},
 	{ERR_CSV_NOT_REORDERED,			"grid not reordered before opening csv file"},
+	{ERR_CONCORDE,					"Concorde error:"},
 	{ERR_UNKNOWN_ERR,				"unknown error:"}
 };
 

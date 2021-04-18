@@ -1,8 +1,10 @@
 #include "../main.h"
 
-int main(int argc, char **argv) 
-{ 
 
+
+int main(int argc, char **argv) 
+{
+	
 	if ( argc < 2 ) { printf("Usage: \"%s -help\" for help\n", argv[0]); exit(1); }
 
 	// print arguments if needed
@@ -95,12 +97,12 @@ int main(int argc, char **argv)
 			switch (model_tsptype(inst.inst_params.model_type))
 			{
 			case MODEL_TSP_ASYMM:
-				print_directed_sol(&inst.inst_graph, xstar);
-				plot_tsp_solution_directed(&inst.inst_graph, xstar);
+				if (VERBOSITY >= LOGLVL_INFO) print_directed_sol(&inst.inst_graph, xstar);
+				if (VERBOSITY >= LOGLVL_PLOTSOL) plot_tsp_solution_directed(&inst.inst_graph, xstar);
 				break;
 			case MODEL_TSP_SYMM:
-				print_undirected_sol(&inst.inst_graph, xstar);
-				plot_tsp_solution_undirected(&inst.inst_graph, xstar);
+				if (VERBOSITY >= LOGLVL_INFO) print_undirected_sol(&inst.inst_graph, xstar);
+				if (VERBOSITY >= LOGLVL_PLOTSOL) plot_tsp_solution_undirected(&inst.inst_graph, xstar);
 				break;
 			}
 		}

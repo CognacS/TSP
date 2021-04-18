@@ -17,15 +17,16 @@ void mip_add_cut(void* env, void* cbdata,
 			mip_add_cut(context,NULL,	-1,			nnz, rhs, sense, index, value, NULL,	CUT_CALLBACK_REJECT);	// from callbacks, reject candidate
 	*/
 
-	// REFERENCE: https://www.ibm.com/docs/en/icos/12.7.1.0?topic=cpxxcutcallbackadd-cpxcutcallbackadd
+	int izero = 0;
+	int local = 0;
+
+	// REFERENCE: https://www.ibm.com/docs/en/icos/20.1.0?topic=c-cpxxcallbackaddusercuts-cpxcallbackaddusercuts
 	if (purgeable >= 0) 	// add the cut from a callback
 	{
-		if (CPXcutcallbackadd((CPXCENVptr)env, cbdata, wherefrom, nnz, rhs, sense, index, value, purgeable))
-			print_error(ERR_ADD_CUT, "error on CPXcutcallbackadd (>=0)");
+		if (CPXcallbackaddusercuts((CPXCALLBACKCONTEXTptr)env, 1, nnz, &rhs, &sense, &izero, index, value, &purgeable, &local))
+			print_error(ERR_ADD_CUT, "error on CPXcallbackaddusercuts (>=0)");
 		return;
 	}
-
-	int izero = 0;
 
 	// REFERENCE: https://www.ibm.com/docs/en/icos/20.1.0?topic=cpxxaddrows-cpxaddrows
 	if (purgeable == CUT_STATIC) 	// statically add the cut to the original model (with casting (CPXLPptr) cbdata)

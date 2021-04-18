@@ -82,20 +82,76 @@ void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
 static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void* userhandle)
 {
 	// get instance handle
-	instance* inst = (instance*)userhandle;
+	callback_instance* cb_inst = (callback_instance*)userhandle;
+	instance* inst = cb_inst->inst;
 	model* m = &inst->inst_model;
 
+	// get stats on context
+	int cpx_node = -1;
+	CPXcallbackgetinfoint(context, CPXCALLBACKINFO_NODECOUNT, &cpx_node);
+	int cpx_depth = -1;
+
 	// get current solution and objective value
-	double* xstar;	arr_malloc_s(xstar, m->ncols, double);
+	double* xstar = NULL;
 	double objval = CPX_INFBOUND;
-	if (CPXcallbackgetcandidatepoint(context, xstar, 0, m->ncols - 1, &objval))
-		print_error(ERR_CPLEX, "CPXcallbackgetcandidatepoint error");
 
-	// add SEC on callback
-	add_sec_on_subtours(context, NULL, inst, xstar, -1, CUT_CALLBACK_REJECT);
+	// define some values
+	double rval;
 
-	// CLEANUP
-	free(xstar);
+	// apply separation or reject based on contextid
+	switch (contextid)
+	{
+	case CPX_CALLBACKCONTEXT_CANDIDATE:
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Entered callback candidate at node %d", cpx_node);
+
+		// allocate xstar
+		arr_malloc_s(xstar, m->ncols, double);
+		// get candidate solution
+		if (CPXcallbackgetcandidatepoint(context, xstar, 0, m->ncols - 1, &objval))
+			print_error(ERR_CPLEX, "CPXcallbackgetcandidatepoint error");
+		// execute rejection procedure
+		if (cb_inst->rej_procedure)
+			cb_inst->rej_procedure(context, NULL, inst, cb_inst->args, xstar, -1, CUT_CALLBACK_REJECT, 0);
+		else
+			print_error(ERR_CB_UNDEF_PROCEDURE, "candidate");
+		// CLEANUP
+		free(xstar);
+		break;
+
+	case CPX_CALLBACKCONTEXT_RELAXATION:
+		
+		// randomly choose whether to apply separation or not
+		CPXcallbackgetinfoint(context, CPXCALLBACKINFO_NODEDEPTH, &cpx_depth);
+		safe_rand(&rval);
+		double decay_h = 0.3;
+		double decay_e = 0.1;
+		double decay_s = 0.1;
+		double decay_r = 0.3;
+		double hyperbolic_decay = 1.0 / (decay_h * cpx_depth + 1);
+		double exponential_decay = exp(-decay_e * cpx_depth);
+		double sigmoid_decay = 2.0 / (exp(decay_s * cpx_depth) + 1);
+		double relu_decay = max(-0.1 * decay_r * cpx_depth + 1, 0);
+		printf("%d -> %f, %f, %f, %f\n", cpx_depth, hyperbolic_decay, exponential_decay, sigmoid_decay, relu_decay);
+		if (rval < (1 - relu_decay)) break;
+
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Entered callback relaxation at node %d", cpx_node);
+
+		// allocate xstar
+		arr_malloc_s(xstar, m->ncols, double);
+		// get candidate solution
+		if (CPXcallbackgetrelaxationpoint(context, xstar, 0, m->ncols - 1, &objval))
+			print_error(ERR_CB_UNDEF_PROCEDURE, "CPXcallbackgetrelaxationpoint error");
+		// execute separation procedure
+		if (cb_inst->sep_procedure)
+			cb_inst->sep_procedure(context, NULL, inst, cb_inst->args, xstar, -1, CPX_USECUT_FILTER, CUT_FLAGS_MINCUT_ENABLED);
+		else
+			print_error(ERR_CB_UNDEF_PROCEDURE, "candidate");
+		// CLEANUP
+		free(xstar);
+		break;
+		
+	}
+	
 	return 0;
 	
 }
@@ -103,7 +159,7 @@ static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG context
 /* **************************************************************************************************
 *				ADD SUBTOUR ELIMINATION CONSTRAINTS ON AN INFEASABLE SOLUTION
 ************************************************************************************************** */
-int add_sec_on_subtours(void* env, void* cbdata, instance* inst, double* xstar, int wherefrom, int purgeable)
+int add_sec_on_subtours(void* env, void* cbdata, instance* inst, void* args, double* xstar, int wherefrom, int purgeable, int flags)
 {
 	// extract structures
 	graph* g = &inst->inst_graph;
@@ -122,7 +178,6 @@ int add_sec_on_subtours(void* env, void* cbdata, instance* inst, double* xstar, 
 	// must add SEC's
 	if (ncomp > 1)
 	{
-
 		// ********** ADD CUTS (1 SEC for each connected component) ***************
 		int nnz = 0;
 		double rhs = 0;
@@ -163,7 +218,6 @@ int add_sec_on_subtours(void* env, void* cbdata, instance* inst, double* xstar, 
 
 			// add SEC
 			mip_add_cut(env, cbdata, wherefrom, nnz, rhs, sense, index, value, "SEC", purgeable);
-
 		}
 
 		// CLEAN UP SEC ARRAYS
@@ -179,6 +233,150 @@ int add_sec_on_subtours(void* env, void* cbdata, instance* inst, double* xstar, 
 	// return how many SEC's where added
 	return ncomp > 1? ncomp : 0;
 
+}
+
+/* **************************************************************************************************
+*				ADD SUBTOUR ELIMINATION CONSTRAINTS USING CONCORDE
+************************************************************************************************** */
+int CC_add_sec_on_subtours(void* env, void* cbdata, instance* inst, void* args, double* xstar, int wherefrom, int purgeable, int flags)
+{
+	// extract structures
+	graph* g = &inst->inst_graph;
+	model* m = &inst->inst_model;
+
+	// make input values
+	int nnodes = g->nnodes;
+	int nedges = nnodes * (nnodes - 1) / 2;
+	int* elist = (int*)args;
+	// make output values
+	int ncomp;
+	int* compscount;
+	int* comps;
+
+	// search for connected components using the Concorde method
+	if (CCcut_connect_components(nnodes, nedges, elist, xstar, &ncomp, &compscount, &comps))
+		print_error(ERR_CONCORDE, "CCcut_connect_components()");
+
+	// if there are connected components, add the SEC
+	if (ncomp > 1)
+	{
+
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Adding SECs");
+		// ********** ADD CUTS (1 SEC for each connected component) ***************
+		int nnz = 0;
+		double rhs = 0;
+		char sense = 'L';
+		double* value;		arr_malloc_s(value, m->ncols, double);
+		int* index;			arr_malloc_s(index, m->ncols, int);
+		// for each connected component add a constraint
+		int comps_pos = 0;	// position in array comps to keep track of the conncomp
+		for (int c = 0; c < ncomp; c++)
+		{
+			// setup for current component
+			rhs = compscount[c] - 1;
+			nnz = 0;
+			// elaborate the component (compscount[c] * (compscount[c] - 1) / 2 edges!)
+			for (int i = comps_pos; i < comps_pos + compscount[c]; i++)
+			{
+				for (int j = i + 1; j < comps_pos + compscount[c]; j++)
+				{
+					index[nnz] = xpos(comps[i], comps[j], g->nnodes);
+					value[nnz] = 1.0;
+					nnz++;
+				}
+			}
+			// increase the position in comps
+			comps_pos += compscount[c];
+
+			// add SEC
+			mip_add_cut(env, cbdata, wherefrom, nnz, rhs, sense, index, value, "SEC", purgeable);
+		}
+
+		free(value);
+		free(index);
+
+	}
+	
+	// if there is just one connected component, add mincut constraints
+	if ((flags & CUT_FLAGS_MINCUT_ENABLED) && ncomp == 1)
+	{
+		// make concorde callback structure
+		concorde_instance cc_inst;
+		cc_inst.inst = inst;
+		cc_inst.context = (CPXCALLBACKCONTEXTptr)env;
+		arr_malloc_s(cc_inst.value, m->ncols, double);
+		arr_malloc_s(cc_inst.index, m->ncols, int);
+		calloc_s(cc_inst.labels, g->nnodes, int);
+
+		// produce cuts
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Adding mincut constraints");
+		if (CCcut_violated_cuts(nnodes, nedges, elist, xstar, CC_CUTOFF, doit_fn_concorde2cplex, &cc_inst))
+			print_error(ERR_CONCORDE, "CCcut_violated_cuts()");
+
+		free(cc_inst.value);
+		free(cc_inst.index);
+		free(cc_inst.labels);
+	}
+
+	// CLEANUP
+	CC_IFFREE(compscount, int);
+	CC_IFFREE(comps, int);
+
+	return ncomp > 1 ? ncomp : 0;
+}
+
+
+/* **************************************************************************************************
+*						CONCORDE CALLBACK FUNCTION TO ADD A CUT TO CPLEX
+************************************************************************************************** */
+int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args)
+{
+	concorde_instance* cc_inst = (concorde_instance*)args;
+	instance* inst = cc_inst->inst;
+	graph* g = &inst->inst_graph;
+	model* m = &inst->inst_model;
+
+	if (cutcount > 2 && cutcount < g->nnodes)
+	{
+		char sense = 'G';
+		double rhs = 2.0;
+		int nnz = 0;
+		double* value = cc_inst->value;
+		int* index = cc_inst->index;
+		int* labels = cc_inst->labels;
+
+		// label cut nodes
+		for (int i = 0; i < cutcount; i++)
+		{
+			labels[cut[i]] = 1;
+		}
+
+		// make the indices for each edge in the cut
+		for (int i = 0; i < cutcount; i++)
+		{
+			for (int j = 0; j < g->nnodes; j++)
+			{
+				// if the node j is not inside S
+				if (labels[j] == 0)
+				{
+					index[nnz] = xpos(cut[i], j, g->nnodes);
+					value[nnz] = 1.0;
+					nnz++;
+				}
+			}
+		}
+
+		// add cut
+		mip_add_cut(cc_inst->context, NULL, -1, nnz, rhs, sense, index, value, NULL, CPX_USECUT_FILTER);
+
+		// reset labels for the next call
+		for (int i = 0; i < cutcount; i++)
+		{
+			labels[cut[i]] = 0;
+		}
+	}
+
+	return 0;
 }
 
 /* **************************************************************************************************
@@ -212,7 +410,7 @@ void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
 			print_error_ext(ERR_CPLEX, "CPXgetx() Benders, CPX error: %d", error);
 
 		// produce new cuts on violated constraints
-		newcuts = add_sec_on_subtours(env, lp, inst, xstar, -1, CUT_STATIC);
+		newcuts = add_sec_on_subtours(env, lp, inst, NULL, xstar, -1, CUT_STATIC, 0);
 		log_line_ext(VERBOSITY, LOGLVL_INFO, "Added %d new SEC's", newcuts);
 
 		// update time limit
@@ -231,18 +429,63 @@ void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
 void solve_callback(instance* inst, CPXENVptr env, CPXLPptr lp)
 {
 	int error;
+	modeltype mt = inst->inst_params.model_type;
+	int nnodes = inst->inst_graph.nnodes;
 
+	// ********************** SETUP STARTING MODEL **********************
 	// build naive model
 	build_model_base_undirected(inst, env, lp);
 
+	// ********************** SETUP CALLBACK STRUCTURES **********************
+	// make flags for model choice
+	int use_cc_sep = use_cc_on_sep(mt);
+	int use_cc_rej = use_cc_on_rej(mt);
+
+	void* args = NULL;
+
+	// if separation or rejection use CC method, then construct elist to be shared
+	// as argument
+	if (use_cc_sep || use_cc_rej)
+	{
+		int nedges = nnodes * (nnodes - 1) / 2;
+		int* elist;	arr_malloc_s(elist, 2 * nedges, int);
+		int arr_idx = 0;
+		for (int i = 0; i < nnodes; i++)
+		{
+			for (int j = i + 1; j < nnodes; j++)
+			{
+				elist[arr_idx++] = i;
+				elist[arr_idx++] = j;
+			}
+		}
+		args = (void*)elist;
+	}
+
+	// make callback instance
+	callback_instance cb_inst;
+	cb_inst.inst = inst;
+	cb_inst.args = args;
+	cb_inst.sep_procedure = use_cc_sep ? CC_add_sec_on_subtours : NULL;
+	cb_inst.rej_procedure = use_cc_rej ? CC_add_sec_on_subtours : add_sec_on_subtours;
+
+	// ********************** SETUP CALLBACK FUNCTION **********************
 	// add lazy constraints when there is a new candidate
 	CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
-	if (error = CPXcallbacksetfunc(env, lp, contextid, sec_callback, inst))
+	// choose to use or not the additional separation
+	if (use_cc_sep) contextid = contextid | CPX_CALLBACKCONTEXT_RELAXATION;
+
+	// set the callback function
+	if (error = CPXcallbacksetfunc(env, lp, contextid, sec_callback, &cb_inst))
 		print_error_ext(ERR_CPLEX, "CPXcallbacksetfunc() Callback, CPX error: %d", error);
 
+	// ********************** OPTIMIZE **********************
 	// solve the problem with the callback
 	if (error = CPXmipopt(env, lp))
 		print_error_ext(ERR_CPLEX, "CPXmipopt() Callback, CPX error: %d", error);
+
+
+	// CLEANUP
+	free(args);
 
 }
 

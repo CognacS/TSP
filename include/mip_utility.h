@@ -27,6 +27,15 @@ inline int variant2constr(modeltype mt) { return CUT_STATIC - (model_variant(mt)
 inline int need_sec(modeltype mt) { return model_variant(mt) & MODEL_VAR_SEC; }
 
 /**
+* takes the model type and returns whether to use Concorde for computing separation
+*/
+inline int use_cc_on_sep(modeltype mt) { return model_variant(mt) & MODEL_VAR_CC_SEP; }
+/**
+* takes the model type and returns whether to use Concorde for computing separation
+*/
+inline int use_cc_on_rej(modeltype mt) { return model_variant(mt) & MODEL_VAR_CC_REJ; }
+
+/**
 * Unified driver to add constraints to the LP.
 * */
 void mip_add_cut(void* env, void* cbdata,
