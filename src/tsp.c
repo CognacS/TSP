@@ -38,6 +38,9 @@ int TSPopt(instance* inst, char getsol)
 	// apply transformation to coordinates if required
 	coord_transform(g);
 
+	// setup random seed
+	srand(DEFAULT_SEED);
+
 	// ************************ OPTIMIZATION ************************
 	switch (model_tsptype(p->model_type))
 	{

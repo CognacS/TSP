@@ -89,6 +89,8 @@ static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG context
 	// get stats on context
 	int cpx_node = -1;
 	CPXcallbackgetinfoint(context, CPXCALLBACKINFO_NODECOUNT, &cpx_node);
+	int cpx_threadid = -1;
+	CPXcallbackgetinfoint(context, CPXCALLBACKINFO_THREADID, &cpx_threadid);
 	int cpx_depth = -1;
 
 	// get current solution and objective value
@@ -122,7 +124,8 @@ static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG context
 		
 		// randomly choose whether to apply separation or not
 		CPXcallbackgetinfoint(context, CPXCALLBACKINFO_NODEDEPTH, &cpx_depth);
-		safe_rand(&rval);
+		// compute random value from threadid, node, depth
+		safe_rand(&rval, cpx_threadid, cpx_node, cpx_depth);
 
 		if (rval < (1 - cb_inst->prob_function(cpx_depth, cb_inst->prob_decay)))
 		{
@@ -255,7 +258,7 @@ int CC_add_sec_on_subtours(void* env, void* lp,
 	int* comps;
 
 	size_t act_edges = count_active_edges(nedges, xstar);
-	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "%ld/%d active edges", act_edges, nedges);
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "%llu/%d active edges", act_edges, nedges);
 
 	// search for connected components using the Concorde method
 	if (CCcut_connect_components(nnodes, nedges, elist, xstar, &ncomp, &compscount, &comps))
