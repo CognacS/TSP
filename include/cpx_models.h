@@ -49,8 +49,6 @@ inline double which_decay(modeltype mt) {
 			CUT_HI_COEFF_DECAY : CUT_LO_COEFF_DECAY;
 }
 
-double get_sep_prob(modeltype mt, int depth);
-
 int add_sec_on_subtours(void* env, void* lp, instance* inst, void* args, double* xstar, int purgeable, int flags, int local);
 int CC_add_sec_on_subtours(void* env, void* lp, instance* inst, void* args, double* xstar, int purgeable, int flags, int local);
 

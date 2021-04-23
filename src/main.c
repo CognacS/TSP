@@ -63,6 +63,9 @@ int main(int argc, char **argv)
 			// register solution time
 			if (out_code == OPT_OK)
 				log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] Solved in %f sec.s", exec_time);
+			// penalize timelimits
+			if (out_code == OPT_TL_EXPIRED) exec_time *= OPT_TL_PENALIZATION_MULT;
+			// register execution time
 			register_time_csv(&csv_bt, exec_time);
 
 			// cleanup current graph

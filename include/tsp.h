@@ -9,6 +9,8 @@
 #include "cpx_models.h"
 #include "chrono.h"
 
+#define OPT_TL_PENALIZATION_MULT 10
+
 typedef enum
 {
 	OPT_OK,

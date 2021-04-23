@@ -98,6 +98,7 @@ typedef struct {
 */
 typedef enum
 {
+	// COMPACT MODELS FOR SOLVING ASYMMETRIC TSP
 	MTZ_ST =			110,	// MTZ static constraints
 	MTZ_LZ =			111,	// MTZ lazy constraints
 	MTZ_ST_SEC =		112,	// MTZ static constraints + SEC
@@ -108,7 +109,9 @@ typedef enum
 	GG_ST_SEC =			122,	// GG  static constraints + SEC
 	GG_LZ_SEC =			123,	// GG  lazy constraints + SEC
 
+	// METHODS FOR SOLVING EXACT SYMMETRIC TSP
 	BENDERS =			210,	// Benders' method
+
 	CLBK_HYP_LO =		220,	// Callback's method with Separation: Concorde + hyperbolic low decay
 	CLBK_HYP_HI =		221,	// Callback's method with Separation: Concorde + hyperbolic high decay
 	CLBK_EXP_LO =		222,	// Callback's method with Separation: Concorde + exponential low decay
@@ -117,7 +120,15 @@ typedef enum
 	CLBK_FIX_HI =		225,	// Callback's method with Separation: Concorde + fixed high prob
 	CLBK_CUT_LO =		226,	// Callback's method with Separation: Concorde + cutoff low depth
 	CLBK_CUT_HI =		227,	// Callback's method with Separation: Concorde + cutoff high depth
-	CLBK_NOSEP	=		228		// Callback's method without Separation
+	CLBK_NOSEP	=		228,	// Callback's method without Separation
+
+	// HEURISTICS
+	HARDFIX_FIXED =		310,
+	HARDFIX_SCHED_H2L =	311,
+	HARDFIX_SCHED_L2H = 312,
+	HARDFIX_RAND_UNIF =	313
+
+
 } modeltype;
 
 

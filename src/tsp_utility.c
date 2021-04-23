@@ -139,6 +139,27 @@ int is_one(double num)
 	return num > 0.5;
 }
 
+int is_zero_strict(double num)
+{
+	return num < XSMALL;
+}
+int is_one_strict(double num)
+{
+	return num > 1.0 - XSMALL;
+}
+
+size_t count_active_edges(size_t size, double* xstar)
+{
+	size_t active_edges = 0;
+	for (size_t i = 0; i < size; i++)
+	{
+		active_edges += !is_zero_strict(xstar[i]);
+	}
+
+	return active_edges;
+}
+
+
 void log_datastruct(void* object, int type, int runlvl, int loglvl)
 {
 	if (runlvl >= loglvl)
@@ -203,5 +224,13 @@ void print_undirected_sol(graph* g, double* xstar)
 				break;
 			}
 		}
+	}
+}
+
+void print_xstar(size_t size, double* xstar)
+{
+	for (size_t i = 0; i < size; i++)
+	{
+		log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "Edge %d: %f", i, xstar[i]);
 	}
 }

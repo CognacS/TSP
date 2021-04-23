@@ -43,6 +43,11 @@ int ypos(int i, int j, int nnodes);
 
 // variable inference of 0/1 value functions
 int is_one(double num);
+int is_zero_strict(double num);
+int is_one_strict(double num);
+
+// count how many edges are activated in xstar
+size_t count_active_edges(size_t size, double* xstar);
 
 // log datastructure function
 void log_datastruct(void* object, int type, int runlvl, int loglvl);
@@ -50,6 +55,7 @@ void log_datastruct(void* object, int type, int runlvl, int loglvl);
 // print solutions
 void print_directed_sol(graph* g, double* xstar);
 void print_undirected_sol(graph* g, double* xstar);
+void print_xstar(size_t size, double* xstar);
 
 
 #endif

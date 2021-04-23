@@ -126,7 +126,7 @@ static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG context
 
 		if (rval < (1 - cb_inst->prob_function(cpx_depth, cb_inst->prob_decay)))
 		{
-			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Skipped callback relaxation at node %d, depth %d", cpx_node, cpx_depth);
+			log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "Skipped callback relaxation at node %d, depth %d", cpx_node, cpx_depth);
 			break;
 		}
 
@@ -254,6 +254,9 @@ int CC_add_sec_on_subtours(void* env, void* lp,
 	int* compscount;
 	int* comps;
 
+	size_t act_edges = count_active_edges(nedges, xstar);
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "%ld/%d active edges", act_edges, nedges);
+
 	// search for connected components using the Concorde method
 	if (CCcut_connect_components(nnodes, nedges, elist, xstar, &ncomp, &compscount, &comps))
 		print_error(ERR_CONCORDE, "CCcut_connect_components()");
@@ -354,6 +357,7 @@ int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args)
 		{
 			labels[cut[i]] = 1;
 		}
+
 
 		for (int j = 0; j < g->nnodes; j++)
 		{
