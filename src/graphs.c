@@ -1,4 +1,4 @@
-#include "../graphs.h"
+#include "../include/graphs.h"
 
 /* **************************************************************************************************
 *						CONNECTED COMPONENTS FINDER FUNCTION (using DFS)

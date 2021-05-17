@@ -1,4 +1,4 @@
-#include "../mip_utility.h"
+#include "../include/mip_utility.h"
 
 /*********************************************************************************************************************************************************/
 void mip_add_cut(void* env, void* lp,
@@ -52,13 +52,117 @@ void mip_add_cut(void* env, void* lp,
 	print_error(ERR_ADD_CUT, "purgeable flag unknown");
 }
 
-void mip_timelimit(CPXENVptr env, double timelimit, instance* inst)
+void mip_setup_cplex(OptData* optdata)
 {
-	double residual_time = inst->inst_global_data.tstart + inst->inst_params.timelimit - second();
+	instance* inst = optdata->inst;
+	params* p = &(inst->inst_params);
+
+	// allocate datastruct
+	if (optdata->cpx != NULL) print_error(ERR_OPT_CPLEX_REDEFINITION, NULL);
+	malloc_s(optdata->cpx, CplexData);
+
+	// allocate env and lp
+	int error;
+	CplexData* cpx = optdata->cpx;
+	cpx->env = CPXopenCPLEX(&error);
+	cpx->lp = CPXcreateprob(optdata->cpx->env, &error, "TSP");
+
+	// setup parameters
+	CPXsetintparam(cpx->env, CPX_PARAM_RANDOMSEED, p->randomseed);
+	CPXsetintparam(cpx->env, CPX_PARAM_NODELIM, p->max_nodes);
+	CPXsetdblparam(cpx->env, CPX_PARAM_EPGAP, p->cutoff);
+	CPXsetdblparam(cpx->env, CPX_PARAM_EPINT, 0.0);
+	if (VERBOSITY >= LOGLVL_CPLEXLOG)
+	{
+		CPXsetintparam(cpx->env, CPX_PARAM_SCRIND, CPX_ON);
+		CPXsetintparam(cpx->env, CPXPARAM_MIP_Display, 5);
+	}
+
+	// setup time limit
+	mip_timelimit(optdata, p->timelimit);
+}
+
+void mip_close_cplex(OptData* optdata)
+{
+	CplexData* cpx = optdata->cpx;
+	if (cpx == NULL) return;
+	// cleanup cplex
+	CPXfreeprob(cpx->env, &(cpx->lp));
+	CPXcloseCPLEX(&(cpx->env));
+	free_s(optdata->cpx);
+}
+
+int mip_solution_available(OptData* optdata)
+{
+	double zz;
+	if (CPXgetobjval(optdata->cpx->env, optdata->cpx->lp, &zz)) return 0;
+	return 1;
+}
+
+void mip_warmstart(OptData* optdata, double* xstar)
+{
+	int ncols = optdata->inst->inst_model.ncols;
+
+	int izero = 0;
+	int effortlevel = CPX_MIPSTART_AUTO;
+	int* varindices; arr_malloc_s(varindices, ncols, int);
+	for (int i = 0; i < ncols; i++) varindices[i] = i;
+	int curr_mipstarts = CPXgetnummipstarts(optdata->cpx->env, optdata->cpx->lp);
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Number of mip starts: %d", curr_mipstarts);
+	if (curr_mipstarts > 0) CPXdelmipstarts(optdata->cpx->env, optdata->cpx->lp, 0, curr_mipstarts - 1);
+	CPXaddmipstarts(optdata->cpx->env, optdata->cpx->lp,
+		1, ncols, &izero, varindices, xstar, &effortlevel, NULL);
+	free(varindices);
+}
+
+void mip_extract_sol_obj_lb(OptData* optdata, char* zone_name)
+{
+	int ncols = optdata->inst->inst_model.ncols;
+	global_data* gd = &(optdata->inst->inst_global_data);
+
+	int error;
+	// get the optimal solution
+	if (error = CPXgetx(optdata->cpx->env, optdata->cpx->lp, gd->xstar, 0, ncols - 1))
+		print_error_ext(ERR_CPLEX, "CPXgetx() %s, CPX error: %d", zone_name, error);
+
+	// get the obj value
+	if (error = CPXgetobjval(optdata->cpx->env, optdata->cpx->lp, &gd->zbest))
+		print_error_ext(ERR_CPLEX, "CPXgetobjval() %s, CPX error: %d", zone_name, error);
+
+	// get the lower bound
+	if (error = CPXgetbestobjval(optdata->cpx->env, optdata->cpx->lp, &gd->lbbest))
+		print_error_ext(ERR_CPLEX, "CPXgetbestobjval() %s, CPX error: %d", zone_name, error);
+}
+
+void mip_extract_sol_obj(OptData* optdata, Solution* sol, char* zone_name)
+{
+	int ncols = optdata->inst->inst_model.ncols;
+	int error;
+
+	// check for pointer
+	if (sol->xstar == NULL) print_error(ERR_OPT_SOLPTR_INCONSISTENT, "xstar");
+	// get the optimal solution
+	if (error = CPXgetx(optdata->cpx->env, optdata->cpx->lp, sol->xstar, 0, ncols - 1))
+		print_error_ext(ERR_CPLEX, "CPXgetx() %s, CPX error: %d", zone_name, error);
+
+	// get the obj value
+	if (error = CPXgetobjval(optdata->cpx->env, optdata->cpx->lp, &sol->cost))
+		print_error_ext(ERR_CPLEX, "CPXgetobjval() %s, CPX error: %d", zone_name, error);
+}
+
+void mip_timelimit(OptData* optdata, double timelimit)
+{
+	double residual_time = optdata->inst->inst_global_data.tstart + optdata->inst->inst_params.timelimit - second();
 	if (residual_time < 0.0) residual_time = 0.0;
-	CPXsetintparam(env, CPX_PARAM_CLOCKTYPE, 2);
-	CPXsetdblparam(env, CPX_PARAM_TILIM, residual_time);					// real time
-	CPXsetdblparam(env, CPX_PARAM_DETTILIM, TICKS_PER_SECOND * timelimit);	// ticks
+	double computed_timelimit = min(residual_time, timelimit);
+	CPXsetintparam(optdata->cpx->env, CPX_PARAM_CLOCKTYPE, 2);
+	CPXsetdblparam(optdata->cpx->env, CPX_PARAM_TILIM, computed_timelimit);	// real time
+	CPXsetdblparam(optdata->cpx->env, CPX_PARAM_DETTILIM, TICKS_PER_SECOND * computed_timelimit);	// ticks
+}
+
+double residual_time(instance* inst)
+{
+	return inst->inst_global_data.tstart + inst->inst_params.timelimit - second();
 }
 
 int time_limit_expired(instance* inst)

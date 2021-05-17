@@ -18,7 +18,7 @@ typedef struct
 void open_file_csv(csv_batchtool* bt);
 void close_file_csv(csv_batchtool* bt);
 void reorder_grid_csv(csv_batchtool* bt);
-void register_time_csv(csv_batchtool* bt, double seconds);
+void register_measure_csv(csv_batchtool* bt, double measure);
 void newline_csv(csv_batchtool* bt);
 
 #endif

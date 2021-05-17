@@ -120,8 +120,62 @@ void free_global_data(global_data* inst_global)
 	free_s(inst_global->xstar);
 }
 
+void free_solution(Solution* sol)
+{
+	free(sol->xstar);
+	free(sol->succ);
+}
+
 void free_instance(instance* inst)
 {
 	free_graph(&inst->inst_graph);
 	free_global_data(&inst->inst_global_data);
+}
+
+
+/* ***********************************************************************************
+*						AUXILIARY STRUCTURES AND FUNCTIONS
+*********************************************************************************** */
+
+LinkedList* newLinkedList()
+{
+	LinkedList* ll;	malloc_s(ll, LinkedList);
+	ll->start = NULL; ll->end = NULL;
+	return ll;
+}
+
+int LL_is_empty(LinkedList* list)
+{
+	return list->start == NULL;
+}
+
+void LL_add_value(LinkedList* list, double x, double y)
+{
+	Cell* cell = NULL;	malloc_s(cell, Cell);
+	cell->x = x;
+	cell->y = y;
+	cell->next = NULL;
+	// if list is not initialized
+	if (list->end == NULL) list->end = list->start = cell;
+	// else add at the end
+	else {
+		list->end->next = cell;
+		list->end = cell;
+	}
+}
+
+void LL_free(LinkedList* list)
+{
+	if (list->start != NULL)
+	{
+		// iterate through all the list and free
+		for (Cell* cell = list->start, *next_cell = list->start->next;
+			next_cell != NULL;
+			cell = next_cell, next_cell = next_cell->next)
+		{
+			free(cell);
+		}
+		free(list->end);
+	}
+	free(list);
 }

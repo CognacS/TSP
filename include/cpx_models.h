@@ -5,6 +5,7 @@
 #include "random.h"
 #include <cut.h>
 
+#include "optimizer_data.h"
 #include "mip_utility.h"
 #include "graphs.h"
 #include "graph_plot.h"
@@ -34,9 +35,10 @@ typedef struct
 	int local;
 } concorde_instance;
 
+
 // ****************************** SYMMETRIC TSP MODELS *******************************
 // ******** CALLBACKS *********
-static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void* userhandle);
+int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void* userhandle);
 
 // *********** CUTS ***********
 // add SE constraints on subtour from an available infeasable solution
@@ -48,7 +50,6 @@ inline double which_decay(modeltype mt) {
 	return (model_variant(mt) & MODEL_VAR_HI_DEC) ?
 			CUT_HI_COEFF_DECAY : CUT_LO_COEFF_DECAY;
 }
-
 int add_sec_on_subtours(void* env, void* lp, instance* inst, void* args, double* xstar, int purgeable, int flags, int local);
 int CC_add_sec_on_subtours(void* env, void* lp, instance* inst, void* args, double* xstar, int purgeable, int flags, int local);
 
@@ -56,27 +57,27 @@ int CC_add_sec_on_subtours(void* env, void* lp, instance* inst, void* args, doub
 int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args);
 
 // ********** MODELS **********
-void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp);
+void build_model_base_undirected(OptData* optdata);
 
 // ******** SOLUTIONS *********
-void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp);
-void solve_callback(instance* inst, CPXENVptr env, CPXLPptr lp);
-void solve_symmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp);
+void solve_benders(OptData* optdata);
+void solve_callback(OptData* optdata);
+void solve_symmetric_tsp(OptData* optdata);
 // ***********************************************************************************
 
 
 // ****************************** ASYMMETRIC TSP MODELS ******************************
 // *********** CUTS ***********
 // add SE constraints on pairs of nodes
-void add_sec2_asymmetric(instance* inst, CPXENVptr env, CPXLPptr lp);
+void add_sec2_asymmetric(OptData* optdata);
 
 // ********** MODELS **********
-void build_model_base_directed(instance* inst, CPXENVptr env, CPXLPptr lp);
-void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp);
-void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp);
+void build_model_base_directed(OptData* optdata);
+void build_model_mtz(OptData* optdata);
+void build_model_gg(OptData* optdata);
 
 // ******** SOLUTIONS *********
-void solve_asymmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp);
+void solve_asymmetric_tsp(OptData* optdata);
 // ***********************************************************************************
 
 #endif

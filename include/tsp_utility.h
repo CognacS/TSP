@@ -46,8 +46,25 @@ int is_one(double num);
 int is_zero_strict(double num);
 int is_one_strict(double num);
 
+// FUNCTIONS FOR HANDLING SOLUTIONS
 // count how many edges are activated in xstar
 size_t count_active_edges(size_t size, double* xstar);
+// extract active edges and return a list of pairs (i, j) with indices (2k, 2k+1), k = 0,1,...,nnodes
+void extract_active_edges(int nnodes, double* xstar, int* ecount, int** elist);
+// produce integer distances from a list of edges
+void compute_idx(int nnodes, int ecount, int* elist, int** idxlist);
+// produce integer distances from a list of edges
+void compute_idx_dst(graph* g, int ecount, int* elist, int** idxlist, unsigned int** dstlist);
+// radix sort: sort edges by distance. Warning: arguments are changed!!!
+void radix_sort(int ecount, int** idxlist, unsigned int** dstlist);
+
+// conversion methods for a feasable solution
+int xstar2succ(double* xstar, int* succ, int nnodes);	// O(n^2) complexity
+int succ2xstar(int* succ, double* xstar, int nnodes);	// O(n) complexity
+int convert_solution(Solution* sol, solformat format);
+
+// handle solution
+void empty_solution(Solution* sol, solformat format, int nnodes);
 
 // log datastructure function
 void log_datastruct(void* object, int type, int runlvl, int loglvl);

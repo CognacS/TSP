@@ -52,6 +52,10 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		{
 			strcpy(p->batch_file, batchfile);
 		}
+		tokencase_1("-heur|-heuristic|-heuristics", heur_code)
+		{
+			strcpy(p->heuristic_code, heur_code);
+		}
 		tokenfinally(arg)
 		{
 			print_error(ERR_CLINE_ARG_UNDEF, arg);

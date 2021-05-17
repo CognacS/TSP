@@ -1,4 +1,4 @@
-#include "../file_parser.h"
+#include "../include/file_parser.h"
 
 void random_instance(graph* g, char* line)
 {

@@ -1,10 +1,9 @@
-#include "../main.h"
-
+#include "../include/main.h"
 
 
 int main(int argc, char **argv) 
 {
-	
+
 	if ( argc < 2 ) { printf("Usage: \"%s -help\" for help\n", argv[0]); exit(1); }
 
 	// print arguments if needed
@@ -57,16 +56,24 @@ int main(int argc, char **argv)
 			read_input(&inst);
 
 			// solve current instance
-			opt_result out_code = TSPopt(&inst, 0);
+			opt_result out_code = TSPopt(&inst);
+			double measure = inst.inst_global_data.perf_measure;
 			double exec_time = inst.inst_global_data.texec;
 
-			// register solution time
+			// log execution time
 			if (out_code == OPT_OK)
 				log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] Solved in %f sec.s", exec_time);
-			// penalize timelimits
-			if (out_code == OPT_TL_EXPIRED) exec_time *= OPT_TL_PENALIZATION_MULT;
-			// register execution time
-			register_time_csv(&csv_bt, exec_time);
+			// log timelimit expired
+			if (out_code == OPT_TL_EXPIRED)
+				log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] Timelimit of %f expired: ran %f sec.s",
+					inst.inst_params.timelimit,  exec_time);
+			// log heuristic method's final obj
+			if (out_code == OPT_HEUR_OK)
+				log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] Heuristic reached an obj of %f in %f sec.s",
+					measure, exec_time);
+
+			// register measure (exec time, final obj)
+			register_measure_csv(&csv_bt, measure);
 
 			// cleanup current graph
 			free_graph(&inst.inst_graph);
@@ -87,7 +94,7 @@ int main(int argc, char **argv)
 		// print instance if needed
 		log_datastruct(&inst, TYPE_INST, VERBOSITY, LOGLVL_DEBUG);
 
-		opt_result out_code = TSPopt(&inst, 1);
+		opt_result out_code = TSPopt(&inst);
 
 		if (out_code == OPT_OK)
 		{
@@ -101,13 +108,21 @@ int main(int argc, char **argv)
 			{
 			case MODEL_TSP_ASYMM:
 				if (VERBOSITY >= LOGLVL_INFO) print_directed_sol(&inst.inst_graph, xstar);
-				if (VERBOSITY >= LOGLVL_PLOTSOL) plot_tsp_solution_directed(&inst.inst_graph, xstar);
+				if (VERBOSITY >= LOGLVL_PLOTSOL) plot_tsp_xstar_directed(&inst.inst_graph, xstar);
 				break;
 			case MODEL_TSP_SYMM:
 				if (VERBOSITY >= LOGLVL_INFO) print_undirected_sol(&inst.inst_graph, xstar);
-				if (VERBOSITY >= LOGLVL_PLOTSOL) plot_tsp_solution_undirected(&inst.inst_graph, xstar);
+				if (VERBOSITY >= LOGLVL_PLOTSOL) plot_tsp_xstar_undirected(&inst.inst_graph, xstar);
 				break;
 			}
+		}
+		if (out_code == OPT_HEUR_OK)
+		{
+			log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] TSP problem solved heuristically in %lf sec.s\n", inst.inst_global_data.texec);
+			log_datastruct(&inst.inst_global_data, TYPE_GLOB, VERBOSITY, LOGLVL_MSG);
+
+			double* xstar = inst.inst_global_data.xstar;
+			if (VERBOSITY >= LOGLVL_PLOTSOL) plot_tsp_xstar_undirected(&inst.inst_graph, xstar);
 		}
 
 	}
@@ -115,6 +130,6 @@ int main(int argc, char **argv)
 
 	// free the data structure
 	free_instance(&inst);
-	
+
 	return 0; 
 } 

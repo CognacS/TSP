@@ -74,6 +74,10 @@ typedef struct {
 #define	MODEL_SY_BEND 1
 #define MODEL_SY_CLBCK 2
 
+#define MODEL_HEURISTICS 3
+// heuristics methods are implemented through the heuristic code
+// due to the complexity in possible combinations
+
 // masks for variants in asymmetric TSP
 #define MODEL_VAR_STAT		0b00000000	// static constraints
 #define MODEL_VAR_LZ		0b00000001	// lazy constraints
@@ -98,7 +102,7 @@ typedef struct {
 */
 typedef enum
 {
-	// COMPACT MODELS FOR SOLVING ASYMMETRIC TSP
+	// COMPACT MODELS FOR SOLVING EXACT ASYMMETRIC TSP
 	MTZ_ST =			110,	// MTZ static constraints
 	MTZ_LZ =			111,	// MTZ lazy constraints
 	MTZ_ST_SEC =		112,	// MTZ static constraints + SEC
@@ -123,11 +127,7 @@ typedef enum
 	CLBK_NOSEP	=		228,	// Callback's method without Separation
 
 	// HEURISTICS
-	HARDFIX_FIXED =		310,
-	HARDFIX_SCHED_H2L =	311,
-	HARDFIX_SCHED_L2H = 312,
-	HARDFIX_RAND_UNIF =	313
-
+	HEURISTICS	=		300
 
 } modeltype;
 
@@ -148,6 +148,7 @@ typedef struct {
 	char batch_file[100];		  			// batch file for instance runs automatization
 	int max_nodes; 							// max n. of branching nodes in the final run (-1 unlimited)
 	double cutoff; 							// cutoff (upper bound) for master
+	char heuristic_code[200];				// code containing heuristic method information
 
 } params;
 
@@ -155,18 +156,42 @@ typedef struct {
 *						INSTANCE GLOBAL DATA SECTION
 *********************************************************************************** */
 #define DEF_XSTAR NULL
+#define DEF_SUCC NULL
+
+typedef enum
+{
+	SOLFORMAT_XSTAR,
+	SOLFORMAT_SUCC,
+	SOLFORMAT_BOTH
+} solformat;
 
 /**
-* Define the global data to be shared during optimization
+* Solution package for compatibility purpose
+*/
+typedef struct
+{
+	double* xstar;		// xstar format compatible with cplex methods
+	int* succ;			// succ format compatible with heuristic methods
+
+	int nnodes;			// size of the solution
+	double cost;		// cost of solution
+	solformat format;	// describes which format(s) is(are) currently correct
+
+} Solution;
+
+/**
+* Global data to be shared during optimization
 */
 typedef struct {
 
 	double tstart;		// time from start of the optimization procedure
 	double texec;		// time of execution updated during optimization
 
-	double* xstar;		// best solution available
+	double* xstar;		// best solution available in xstar format
 	double zbest;		// obj value of the best integer solution
 	double lbbest;		// lower bound of the best solution
+
+	double perf_measure; // measure to compare performances in different methods
 
 } global_data;
 
@@ -180,7 +205,7 @@ typedef struct {
 */
 typedef struct {
 
-	int ncols;
+	int ncols;				// number of columns in the MIP, more broadly the number of variables
 
 } model;
 
@@ -200,6 +225,8 @@ typedef struct {
 
 } instance;
 
+#include "error.h"
+
 // functions for printing purposes
 void print_graph		(graph* inst_graph);
 void print_params		(params* inst_p);
@@ -213,10 +240,30 @@ void fill_inst_default(instance* inst);
 // free functions for destruction
 void free_graph			(graph* inst_graph);
 void free_global_data	(global_data* inst_global);
+void free_solution		(Solution* sol);
 void free_instance		(instance* inst);
 
+/* ***********************************************************************************
+*						AUXILIARY STRUCTURES AND FUNCTIONS
+*********************************************************************************** */
 
-#define free_s(POINTER) \
-free(POINTER); POINTER = NULL
+typedef struct Cell
+{
+	double x;
+	double y;
+	struct Cell* next;
+} Cell;
+
+typedef struct
+{
+	Cell* start;
+	Cell* end;
+} LinkedList;
+
+LinkedList* newLinkedList();
+
+int LL_is_empty(LinkedList* list);
+void LL_add_value(LinkedList* list, double x, double y);
+void LL_free(LinkedList* list);
 
 #endif   /* TSP_DATA_H_ */ 

@@ -8,6 +8,7 @@
 #include "log.h"
 #include "error.h"
 #include "tsp_data.h"
+#include "optimizer_data.h"
 
 #define CUT_STATIC			-1
 #define CUT_LAZY			-2
@@ -31,6 +32,7 @@ inline int need_sec(modeltype mt) { return model_variant(mt) & MODEL_VAR_SEC; }
 */
 inline int use_cc_on_sep(modeltype mt) { return !(model_variant(mt) & MODEL_VAR_NOSEP); }
 
+// CALLBACK SEPARATION AUXILIARY FUNCTIONS
 // functions for computing the separation probability
 inline double hyp_decay_prob(int depth, double decay) { return 1.0 / (decay * depth + 1); }
 inline double exp_decay_prob(int depth, double decay) { return exp(-decay * depth); }
@@ -44,8 +46,20 @@ void mip_add_cut(void* env, void* lp,
 		int nnz, double rhs, char sense,
 		int* index, double* value, int purgeable, char* name, int local);
 
-void mip_timelimit(CPXENVptr env, double timelimit, instance* inst);
 
+void mip_setup_cplex(OptData* optdata);
+void mip_close_cplex(OptData* optdata);
+
+int mip_solution_available(OptData* optdata);
+
+void mip_warmstart(OptData* optdata, double* xstar);
+
+void mip_extract_sol_obj_lb(OptData* optdata, char* zone_name);
+void mip_extract_sol_obj(OptData* optdata, Solution* sol, char* zone_name);
+
+void mip_timelimit(OptData* optdata, double timelimit);
+
+double residual_time(instance* inst);
 int time_limit_expired(instance* inst);
 
 #endif

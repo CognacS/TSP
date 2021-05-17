@@ -1,11 +1,13 @@
-#include "../cpx_models.h"
+#include "../include/cpx_models.h"
 
 /* **************************************************************************************************
 *						BASE MODEL FOR UNDIRECTED GRAPHS
 ************************************************************************************************** */
-void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
+void build_model_base_undirected(OptData* optdata)
 {
-
+	instance* inst = optdata->inst;
+	CPXENVptr env = optdata->cpx->env;
+	CPXLPptr lp = optdata->cpx->lp;
 	// ********************************* SETUP *********************************
 	// extract values
 	graph* g = &inst->inst_graph;
@@ -79,7 +81,7 @@ void build_model_base_undirected(instance* inst, CPXENVptr env, CPXLPptr lp)
 /* **************************************************************************************************
 *				ADD SUBTOUR ELIMINATION CONSTRAINTS ON AN INFEASABLE SOLUTION
 ************************************************************************************************** */
-static int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void* userhandle)
+int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void* userhandle)
 {
 	// get instance handle
 	callback_instance* cb_inst = (callback_instance*)userhandle;
@@ -391,14 +393,17 @@ int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args)
 /* **************************************************************************************************
 *						SOLUTION USING BENDERS' METHOD
 ************************************************************************************************** */
-void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
+void solve_benders(OptData* optdata)
 {
+	instance* inst = optdata->inst;
+	CPXENVptr env = optdata->cpx->env;
+	CPXLPptr lp = optdata->cpx->lp;
 	int error;
 	// extract structures
 	graph* g = &inst->inst_graph;
 
 	// build naive model
-	build_model_base_undirected(inst, env, lp);
+	build_model_base_undirected(optdata);
 	int ncols = CPXgetnumcols(env, lp);
 
 	// build solution array
@@ -423,7 +428,7 @@ void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
 		log_line_ext(VERBOSITY, LOGLVL_INFO, "Added %d new SEC's", newcuts);
 
 		// update time limit
-		mip_timelimit(env, inst->inst_params.timelimit, inst);
+		mip_timelimit(optdata, inst->inst_params.timelimit);
 
 	} while (newcuts && !time_limit_expired(inst));
 
@@ -435,15 +440,18 @@ void solve_benders(instance* inst, CPXENVptr env, CPXLPptr lp)
 /* **************************************************************************************************
 *						SOLUTION USING CALLBACK'S METHOD
 ************************************************************************************************** */
-void solve_callback(instance* inst, CPXENVptr env, CPXLPptr lp)
+void solve_callback(OptData* optdata)
 {
+	instance* inst = optdata->inst;
+	CPXENVptr env = optdata->cpx->env;
+	CPXLPptr lp = optdata->cpx->lp;
 	int error;
 	modeltype mt = inst->inst_params.model_type;
 	int nnodes = inst->inst_graph.nnodes;
 
 	// ********************** SETUP STARTING MODEL **********************
 	// build naive model
-	build_model_base_undirected(inst, env, lp);
+	build_model_base_undirected(optdata);
 
 	// ********************** SETUP CALLBACK STRUCTURES **********************
 	// make flags for model choice
@@ -529,8 +537,12 @@ void solve_callback(instance* inst, CPXENVptr env, CPXLPptr lp)
 /* **************************************************************************************************
 *						SOLUTION USING UNDIRECTED GRAPHS MODELS
 ************************************************************************************************** */
-void solve_symmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
+void solve_symmetric_tsp(OptData* optdata)
 {
+	instance* inst = optdata->inst;
+	CPXENVptr env = optdata->cpx->env;
+	CPXLPptr lp = optdata->cpx->lp;
+
 	modeltype mt = inst->inst_params.model_type;
 	// if the tsptype of the model is not asymmetric, throw error
 	if (model_tsptype(mt) != MODEL_TSP_SYMM)
@@ -540,10 +552,10 @@ void solve_symmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 	switch (model_archetype(mt))
 	{
 	case MODEL_SY_BEND:
-		solve_benders(inst, env, lp);
+		solve_benders(optdata);
 		break;
 	case MODEL_SY_CLBCK:
-		solve_callback(inst, env, lp);
+		solve_callback(optdata);
 		break;
 	default:
 		print_error(ERR_MODEL_NOT_IMPL, "symmetric variant");
@@ -554,9 +566,11 @@ void solve_symmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 /* **************************************************************************************************
 *						BASE MODEL FOR DIRECTED GRAPHS
 ************************************************************************************************** */
-void build_model_base_directed(instance* inst, CPXENVptr env, CPXLPptr lp)
+void build_model_base_directed(OptData* optdata)
 {
-
+	instance* inst = optdata->inst;
+	CPXENVptr env = optdata->cpx->env;
+	CPXLPptr lp = optdata->cpx->lp;
 	// ********************************* SETUP *********************************
 	// extract values
 	graph* g = &inst->inst_graph;
@@ -650,10 +664,13 @@ void build_model_base_directed(instance* inst, CPXENVptr env, CPXLPptr lp)
 /* **************************************************************************************************
 *			MILLER, TUCKER AND ZEMLIN COMPACT MODEL (MTZ)
 ************************************************************************************************** */
-void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp)
+void build_model_mtz(OptData* optdata)
 {
+	instance* inst = optdata->inst;
+	CPXENVptr env = optdata->cpx->env;
+	CPXLPptr lp = optdata->cpx->lp;
 	// construct the base model for directed graphs
-	build_model_base_directed(inst, env, lp);
+	build_model_base_directed(optdata);
 
 	// extract values
 	graph* g = &inst->inst_graph;
@@ -715,10 +732,13 @@ void build_model_mtz(instance* inst, CPXENVptr env, CPXLPptr lp)
 /* **************************************************************************************************
 *			GAVISH AND GRAVES SINGLE COMMODITY FLOW MODEL (GG)
 ************************************************************************************************** */
-void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
+void build_model_gg(OptData* optdata)
 {
+	instance* inst = optdata->inst;
+	CPXENVptr env = optdata->cpx->env;
+	CPXLPptr lp = optdata->cpx->lp;
 	// construct the base model for directed graphs
-	build_model_base_directed(inst, env, lp);
+	build_model_base_directed(optdata);
 
 	// extract values
 	graph* g = &inst->inst_graph;
@@ -837,8 +857,11 @@ void build_model_gg(instance* inst, CPXENVptr env, CPXLPptr lp)
 *				ADD SUBTOUR ELIMINATION CONSTRAINT FOR PAIRS IN ASYMMETRIC TSP
 ************************************************************************************************** */
 
-void add_sec2_asymmetric(instance* inst, CPXENVptr env, CPXLPptr lp)
+void add_sec2_asymmetric(OptData* optdata)
 {
+	instance* inst = optdata->inst;
+	CPXENVptr env = optdata->cpx->env;
+	CPXLPptr lp = optdata->cpx->lp;
 	graph* g = &inst->inst_graph;
 
 	// add lazy constraints 1.0 * x_ij + 1.0 * x_ji <= 1, for each arc (i,j) with i < j
@@ -865,8 +888,12 @@ void add_sec2_asymmetric(instance* inst, CPXENVptr env, CPXLPptr lp)
 /* **************************************************************************************************
 *						SOLUTION USING DIRECTED GRAPHS MODELS
 ************************************************************************************************** */
-void solve_asymmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
+void solve_asymmetric_tsp(OptData* optdata)
 {
+	instance* inst = optdata->inst;
+	CPXENVptr env = optdata->cpx->env;
+	CPXLPptr lp = optdata->cpx->lp;
+
 	modeltype mt = inst->inst_params.model_type;
 	// if the tsptype of the model is not asymmetric, throw error
 	if (model_tsptype(mt) != MODEL_TSP_ASYMM) print_error(ERR_WRONG_TSP_PROCEDURE, NULL);
@@ -875,17 +902,17 @@ void solve_asymmetric_tsp(instance* inst, CPXENVptr env, CPXLPptr lp)
 	switch (model_archetype(mt))
 	{
 	case MODEL_AS_MTZ:
-		build_model_mtz(inst, env, lp);
+		build_model_mtz(optdata);
 		break;
 	case MODEL_AS_GG:
-		build_model_gg(inst, env, lp);
+		build_model_gg(optdata);
 		break;
 	default:
 		print_error(ERR_MODEL_NOT_IMPL, "asymmetric variant");
 	}
 
 	// add SEC on pairs if needed
-	if (need_sec(mt)) add_sec2_asymmetric(inst, env, lp);
+	if (need_sec(mt)) add_sec2_asymmetric(optdata);
 
 	// solve the model
 	int error = 0;

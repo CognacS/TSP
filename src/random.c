@@ -1,4 +1,4 @@
-#include "../random.h"
+#include "../include/random.h"
 
 void safe_rand(double* rand_num, int a, int b, int c)
 {

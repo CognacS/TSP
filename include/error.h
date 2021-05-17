@@ -12,48 +12,56 @@
 typedef enum
 {
 	// command line errors
-	ERR_CLINE_ARG_UNDEF =			0000,
-	ERR_CLINE_NOT_ENOUGH_VALUES =	0001,
+	ERR_CLINE_ARG_UNDEF =			000,
+	ERR_CLINE_NOT_ENOUGH_VALUES =	001,
 	// TSP input file errors
-	ERR_INPUT_NOT_EXISTS =			0100,
-	ERR_INPUT_FORMAT =				0101,
-	ERR_INPUT_PARAM_REPEATED = 		0102,
-	ERR_INPUT_PARAM_DISORDERED =	0103,
-	ERR_INPUT_UNKNOWN_NODE = 		0104,
+	ERR_INPUT_NOT_EXISTS =			100,
+	ERR_INPUT_FORMAT =				101,
+	ERR_INPUT_PARAM_REPEATED = 		102,
+	ERR_INPUT_PARAM_DISORDERED =	103,
+	ERR_INPUT_UNKNOWN_NODE = 		104,
 	// optimization errors
-	ERR_OPT_PROCEDURE = 			0200,
+	ERR_OPT_PROCEDURE = 			200,
+	ERR_OPT_CPLEX_REDEFINITION =	201,
+	ERR_OPT_SOLPTR_INCONSISTENT =	202,
 	// cplex errors
-	ERR_CPLEX = 					0300,
+	ERR_CPLEX = 					300,
 	// general purpose 
-	ERR_INCORRECT_FUNCTION_IMPL =	0400,
-	ERR_INVALID_FUNC_ARGS = 		0401,
-	ERR_NO_MEM_FOR_ALLOC = 			0402,
-	ERR_UNKNOWN_ERR =				0403,
-	ERR_RNG_ERR =					0404,
+	ERR_INCORRECT_FUNCTION_IMPL =	400,
+	ERR_INVALID_FUNC_ARGS = 		401,
+	ERR_NO_MEM_FOR_ALLOC = 			402,
+	ERR_UNKNOWN_ERR =				403,
+	ERR_RNG_ERR =					404,
 	// models errors
-	ERR_WRONG_TSP_PROCEDURE = 		0500,
-	ERR_MODEL_NOT_IMPL = 			0501,
-	ERR_MODEL_INCONSISTENT = 		0502,
-	ERR_NO_SOLUTION = 				0503,
-	ERR_ADD_CUT = 					0504,
-	ERR_CB_UNDEF_PROCEDURE =		0505,
+	ERR_WRONG_TSP_PROCEDURE = 		500,
+	ERR_MODEL_NOT_IMPL = 			501,
+	ERR_MODEL_INCONSISTENT = 		502,
+	ERR_NO_SOLUTION = 				503,
+	ERR_ADD_CUT = 					504,
+	ERR_CB_UNDEF_PROCEDURE =		505,
 	// batchtool errors
-	ERR_CSV_CANNOT_OPEN =			0600,
-	ERR_CSV_NOT_REORDERED =			0601,
+	ERR_CSV_CANNOT_OPEN =			600,
+	ERR_CSV_NOT_REORDERED =			601,
 	// concorde errors
-	ERR_CONCORDE =					0700,
+	ERR_CONCORDE =					700,
+	// heuristic errors
+	ERR_HEUR_DECODE =				800,
+	ERR_HEUR_CONSTR_PARAM	=		801,
+	ERR_HEUR_REFINE_PARAM	=		802,
+	ERR_HEUR_INFEASABLE_SOL	=		803
+
 } err_code;
 
 
 // *************** define warnings ***************
 typedef enum
 {
-	WARN_WRONG_DATASTRUCT =			0000,	// unknown data structure (inst, graph, etc...)
-	WARN_IGNORED_INPUT_FILE_PARAM = 0100,	// unknown parameter of input file to be skipped
+	WARN_WRONG_DATASTRUCT =			000,	// unknown data structure (inst, graph, etc...)
+	WARN_IGNORED_INPUT_FILE_PARAM = 100,	// unknown parameter of input file to be skipped
 	// optimization warnings
-	WARN_EXPIRED_TIMELIMIT =		0200,
+	WARN_EXPIRED_TIMELIMIT =		200,
 	// general purpose
-	WARN_UNKNOWN_WARN =				0403
+	WARN_UNKNOWN_WARN =				403
 } warn_code;
 
 typedef struct
@@ -73,6 +81,8 @@ static const numbered_str error_msgs[] =
 	{ERR_INPUT_PARAM_DISORDERED,	"should be ordered:"},
 	{ERR_INPUT_UNKNOWN_NODE,		"unknown node number"},
 	{ERR_OPT_PROCEDURE,				"error in optimization procedure"},
+	{ERR_OPT_CPLEX_REDEFINITION,	"trying to redefine cplex environment, close it first"},
+	{ERR_OPT_SOLPTR_INCONSISTENT,	"pointer is invalid for solution format:"},
 	{ERR_CPLEX,						"CPX error:"},
 	{ERR_INCORRECT_FUNCTION_IMPL,	"function error:"},
 	{ERR_INVALID_FUNC_ARGS,			"invalid input arguments in function: "},
@@ -87,6 +97,10 @@ static const numbered_str error_msgs[] =
 	{ERR_CSV_CANNOT_OPEN,			"could not open output CSV file:"},
 	{ERR_CSV_NOT_REORDERED,			"grid not reordered before opening csv file"},
 	{ERR_CONCORDE,					"Concorde error:"},
+	{ERR_HEUR_DECODE,				"Heuristic decoding error:"},
+	{ERR_HEUR_CONSTR_PARAM,			"Constructive heuristic got wrong parameter"},
+	{ERR_HEUR_REFINE_PARAM,			"Refining heuristic got wrong parameter"},
+	{ERR_HEUR_INFEASABLE_SOL,		"Got an infeasable solution during the procedure"},
 	{ERR_UNKNOWN_ERR,				"unknown error:"}
 };
 
@@ -117,12 +131,23 @@ print_error(error_type, line);\
 }
 
 #define calloc_s(ARRAY, SIZE, TYPE) \
-if (!(ARRAY = (TYPE*)calloc((SIZE), sizeof(TYPE)))) print_error(ERR_NO_MEM_FOR_ALLOC, #ARRAY)
+do{\
+if (!(ARRAY = (TYPE*)calloc((SIZE), sizeof(TYPE)))) print_error(ERR_NO_MEM_FOR_ALLOC, #ARRAY);\
+}while(0)
 
 #define malloc_s(STRUCT, TYPE) \
-if (!(STRUCT = (TYPE*)malloc(sizeof(TYPE)))) print_error(ERR_NO_MEM_FOR_ALLOC, #STRUCT)
+do{\
+if (!(STRUCT = (TYPE*)malloc(sizeof(TYPE)))) print_error(ERR_NO_MEM_FOR_ALLOC, #STRUCT);\
+}while (0)
 
 #define arr_malloc_s(ARRAY, SIZE, TYPE) \
-if (!(ARRAY = (TYPE*)malloc((SIZE) * sizeof(TYPE)))) print_error(ERR_NO_MEM_FOR_ALLOC, #ARRAY)
+do{\
+if (!(ARRAY = (TYPE*)malloc((SIZE) * sizeof(TYPE)))) print_error(ERR_NO_MEM_FOR_ALLOC, #ARRAY);\
+}while(0)
+
+#define free_s(POINTER) \
+do{\
+free(POINTER); POINTER = NULL;\
+}while(0)
 
 #endif

@@ -121,14 +121,14 @@ void close_file_csv(csv_batchtool* bt)
 	fclose(bt->csv_fp);
 }
 
-void register_time_csv(csv_batchtool* bt, double seconds)
+void register_measure_csv(csv_batchtool* bt, double measure)
 {
 	grid* p_grid = &bt->bt.p_grid;
 	// define cumulative time and number
-	static double accum_time;
+	static double accum_measure;
 	static int	  samples_num;
 	// update value of current cell
-	accum_time += seconds;
+	accum_measure += measure;
 	samples_num++;
 
 	// get last update index
@@ -140,8 +140,8 @@ void register_time_csv(csv_batchtool* bt, double seconds)
 	// if update is out of cell, print the value of the cell
 	if (axis_update != CSV_CELL && samples_num > 0)
 	{
-		fprintf(bt->csv_fp, ",%f", accum_time / samples_num);
-		accum_time = 0;
+		fprintf(bt->csv_fp, ",%f", accum_measure / samples_num);
+		accum_measure = 0;
 		samples_num = 0;
 	}
 
