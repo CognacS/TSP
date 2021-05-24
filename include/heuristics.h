@@ -88,7 +88,8 @@ typedef struct
 // ******************************** AUXILIARY FUNCTIONS ******************************
 void decode_heuristic(OptData* optdata, Heuristic* heur);
 void resolve_solformats(Heuristic* heur);
-char extramilage_move(Solution* sol, graph* g, GraspData* grasp);
+char extramileage_move(Solution* sol, graph* g, GraspData* grasp);
+double move_2opt(int* succ, graph * g, char allow_unimproving);
 
 // ********************************* BACKBONE METHODS ********************************
 void solve_heuristically(OptData* optdata);
@@ -112,6 +113,8 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 
 void refine_hardfixing(OptData* optdata, Solution* sol, void* data, double timelim);
 void refine_localbranching(OptData* optdata, Solution* sol, void* data, double timelim);
+void refine_2opt(OptData* optdata, Solution* sol, void* data, double timelim);
+
 
 #endif
 

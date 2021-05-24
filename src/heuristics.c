@@ -15,6 +15,8 @@ void solve_heuristically(OptData* optdata)
 	callback_instance cb_inst;
 	if (heur.requires_cplex)
 	{
+		log_line(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Cplex needed: setting up"),
+
 		// ********************** SETUP BASE MODEL **********************
 		// setup cplex for use
 		mip_setup_cplex(optdata);
@@ -265,6 +267,11 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 		heur->refine_data = data;
 		heur->refine_sol_format = SOLFORMAT_XSTAR;
 		break;
+	case '2':	// refine through 2-OPT moves
+		heur->refine_heur = refine_2opt;
+		heur->refine_data = NULL;
+		heur->refine_sol_format = SOLFORMAT_SUCC;
+		break;
 	default:
 		print_error_ext(ERR_HEUR_DECODE, "unknown refining heuristic: %c", *code);
 	}
@@ -312,15 +319,15 @@ void resolve_solformats(Heuristic* heur)
 }
 
 /* **************************************************************************************************
-*				ADD A NODE TO THE SOLUTION'S TOUR THROUGH THE EXTRAMILAGE PROCEDURE
+*				ADD A NODE TO THE SOLUTION'S TOUR THROUGH THE extramileage PROCEDURE
 ************************************************************************************************** */
-char extramilage_move(Solution* sol, graph* g, GraspData* grasp)
+char extramileage_move(Solution* sol, graph* g, GraspData* grasp)
 {
 	// get unvisited nodes
 	int* unvisited_nodes = NULL;	arr_malloc_s(unvisited_nodes, sol->nnodes, int);
 	int unvisited_nodes_num = compute_list_unvisited_nodes(sol, unvisited_nodes);
 
-	// if an extramilage move can be made
+	// if an extramileage move can be made
 	if (unvisited_nodes_num > 0)
 	{
 		// setup iterator
@@ -388,6 +395,84 @@ char extramilage_move(Solution* sol, graph* g, GraspData* grasp)
 	free(unvisited_nodes);
 
 	return unvisited_nodes_num > 0;
+}
+
+double move_2opt(int* succ, graph* g, char allow_unimproving)
+{
+	// define edges ab and cd as those to replace
+	// define edges ac and bd as those to insert
+	double ab_dist, cd_dist, ac_dist, bd_dist;
+	int a, b, c, d;
+	int a_min = 0, b_min = 0, c_min = 0, d_min = 0;
+	double delta_min = INFINITY;
+	double delta_curr;
+
+	a = 0;
+	// for each node of the tour
+	for (int i = 0; i < g->nnodes; i++)
+	{
+		b = succ[a];
+		ab_dist = dist(a, b, g);
+		
+		// c starts after b
+		c = succ[b];
+		// for each remaining edge in the tour
+		// apart from (?, a), (a,b), (b, ?)
+		for (int j = 0; j < g->nnodes - 3; j++)
+		{
+			d = succ[c];
+			cd_dist = dist(c, d, g);
+			ac_dist = dist(a, c, g);
+			bd_dist = dist(b, d, g);
+
+			delta_curr = (ac_dist + bd_dist) - (ab_dist + cd_dist);
+			if (delta_curr < delta_min)
+			{
+				delta_min = delta_curr;
+				a_min = a;
+				b_min = b;
+				c_min = c;
+				d_min = d;
+			}
+			c = d;
+			d = succ[d];
+
+		}
+		// get to the next edge
+		a = b;
+		b = succ[b];
+	}
+
+	// if this is an improving move (delta<0)
+	// or non improving moves are allowed
+	if (delta_min < 0 || allow_unimproving)
+	{
+		// remember next of b_min
+		int new_next = b_min;
+		int new_curr = succ[b_min];
+		int new_prev;
+
+		succ[a_min] = c_min;
+		succ[b_min] = d_min;
+
+		// reverse path from b_min to c_min
+		do
+		{
+			// swap direction
+			new_prev = succ[new_curr];
+			succ[new_curr] = new_next;
+
+			// shift
+			new_next = new_curr;
+			new_curr = new_prev;
+
+		} while (new_next != c_min);
+
+
+		return delta_min;
+	}
+
+	return 0;
 }
 
 /* **************************************************************************************************
@@ -595,6 +680,15 @@ void construct_greedy(OptData* optdata, Solution* sol, void* data, double timeli
 
 }
 
+/* **************************************************************************************************
+*					CONSTRUCTIVE HEURISTIC: EXTRA MILEAGE METHOD
+*			- build a starting incomplete solution with a tour
+*			- add each external node c by replacing a tour edge (a,b) with (a,c) and (c,b)
+*			- select node c which minimizes:
+*					delta_cost(a,b,c) = dist(a,c) + dist(c,b) - dist(a,b)
+*			- if randomizing, compute more solutions
+*			- return the best solution
+************************************************************************************************** */
 void construct_extramileage(OptData* optdata, Solution* sol, void* data, double timelim)
 {
 	// ************************************ SETUP ************************************
@@ -609,8 +703,8 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 	ExtraMileageData* cnstdata = (ExtraMileageData*)data;
 	double p_dev = cnstdata->grasp.p_dev;
 	int candpool_size = cnstdata->grasp.candpool_size;
-	if (p_dev) log_line(VERBOSITY, LOGLVL_INFO, "[INFO] Running extramilage method with GRASP");
-	else log_line(VERBOSITY, LOGLVL_INFO, "[INFO] Running standard extramilage (no GRASP)");
+	if (p_dev) log_line(VERBOSITY, LOGLVL_INFO, "[INFO] Running extramileage method with GRASP");
+	else log_line(VERBOSITY, LOGLVL_INFO, "[INFO] Running standard extramileage (no GRASP)");
 	char variant_startingchoice = cnstdata->variant_startingchoice;
 
 	// setup best and current solutions
@@ -663,7 +757,7 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 			i++;
 			if (VERBOSITY >= LOGLVL_DEBUGPLOT_P && i % log_period == 0) plot_tsp_solution_undirected(g, curr_sol);
 
-		} while (extramilage_move(curr_sol, g, &cnstdata->grasp));
+		} while (extramileage_move(curr_sol, g, &cnstdata->grasp));
 
 		// check if current solution is the best until now, if so swap them
 		if (curr_sol->cost < best_sol->cost)
@@ -1014,5 +1108,24 @@ void refine_localbranching(OptData* optdata, Solution* sol, void* data, double t
 	// cleanup
 	free(index);
 	free(value);
+
+}
+
+
+void refine_2opt(OptData* optdata, Solution* sol, void* data, double timelim)
+{
+	// compute move
+	double delta = move_2opt(sol->succ, &optdata->inst->inst_graph, 0);
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Solution cost changed by: %f through a 2-OPT move", delta);
+	// change cost
+	sol->cost += delta;
+
+	// if not improving
+	if (delta >= 0)
+	{
+		// mark solution as local optimum
+		sol->optimal = 1;
+		log_line(VERBOSITY, LOGLVL_INFO, "[INFO] Local minimum in 2-OPT neighborhood reached");	
+	}
 
 }
