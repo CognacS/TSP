@@ -128,11 +128,14 @@ void plot_tsp_succ_undirected(graph* g, int* succ)
 
 	for (int i = 0; i < g->nnodes; i++)
 	{
-		// print edge nodes
-		fprintf(plot_handle->pipe, "%f %f %d\n", g->xcoord[i], g->ycoord[i], i + 1);
-		fprintf(plot_handle->pipe, "%f %f %d\n", g->xcoord[succ[i]], g->ycoord[succ[i]], succ[i] + 1);
-		// print edge separator
-		fprintf(plot_handle->pipe, "\n");
+		if (succ[i] >= 0)
+		{
+			// print edge nodes
+			fprintf(plot_handle->pipe, "%f %f %d\n", g->xcoord[i], g->ycoord[i], i + 1);
+			fprintf(plot_handle->pipe, "%f %f %d\n", g->xcoord[succ[i]], g->ycoord[succ[i]], succ[i] + 1);
+			// print edge separator
+			fprintf(plot_handle->pipe, "\n");
+		}
 	}
 
 	// *************** end data block ***************
@@ -199,16 +202,14 @@ void plot_tsp_succ_directed(graph* g, int* succ)
 
 void plot_tsp_solution_undirected(graph* g, Solution* sol)
 {
-	if (sol->format == SOLFORMAT_SUCC ||
-		sol->format == SOLFORMAT_BOTH) plot_tsp_succ_undirected(g, sol->succ);
-	else if (sol->format == SOLFORMAT_XSTAR) plot_tsp_xstar_undirected(g, sol->xstar);
+	if (sol->format & SOLFORMAT_SUCC) plot_tsp_succ_undirected(g, sol->succ);
+	else if (sol->format & SOLFORMAT_XSTAR) plot_tsp_xstar_undirected(g, sol->xstar);
 }
 
 void plot_tsp_solution_directed(graph* g, Solution* sol)
 {
-	if (sol->format == SOLFORMAT_SUCC ||
-		sol->format == SOLFORMAT_BOTH) plot_tsp_succ_directed(g, sol->succ);
-	else if (sol->format == SOLFORMAT_XSTAR) plot_tsp_xstar_directed(g, sol->xstar);
+	if (sol->format & SOLFORMAT_SUCC) plot_tsp_succ_directed(g, sol->succ);
+	else if (sol->format & SOLFORMAT_XSTAR) plot_tsp_xstar_directed(g, sol->xstar);
 }
 
 

@@ -10,6 +10,36 @@ void coord_transform(graph* g)
 	case GEO:
 		geo_transform(g);
 		break;
+	default:
+		print_error_ext(ERR_GENERIC_NOT_IMPL, "distance %d", g->distance_type);
+	}
+}
+
+double ggetx(graph* g, int idx)
+{
+	switch (g->distance_type)
+	{
+	case EUC_2D:
+	case ATT:
+		return g->xcoord[idx];
+	case GEO:
+		return g->tr_xcoord[idx];
+	default:
+		print_error_ext(ERR_GENERIC_NOT_IMPL, "distance %d", g->distance_type);
+	}
+
+}
+double ggety(graph* g, int idx)
+{
+	switch (g->distance_type)
+	{
+	case EUC_2D:
+	case ATT:
+		return g->ycoord[idx];
+	case GEO:
+		return g->tr_ycoord[idx];
+	default:
+		print_error_ext(ERR_GENERIC_NOT_IMPL, "distance %d", g->distance_type);
 	}
 }
 
@@ -95,9 +125,22 @@ int dist_to_int(double distance)
 	return int_dist;
 }
 
+void compute_dists(double* dists, graph* g)
+{
+	int pos = 0;
+	for (int i = 0; i < g->nnodes; i++)
+	{
+		for (int j = i + 1; j < g->nnodes; j++)
+		{
+			dists[pos++] = dist(i, j, g);
+		}
+	}
+}
 
-
-
+double delta_cost(int a, int b, int c, graph* g)
+{
+	return dist(a, c, g) + dist(c, b, g) - dist(a, b, g);
+}
 
 int xpos(int i, int j, int nnodes)
 {
@@ -282,6 +325,7 @@ int xstar2succ(double* xstar, int* succ, int nnodes)
 	char* visited = NULL;	calloc_s(visited, nnodes, char);
 	// identify tour of FEASABLE solution
 	int curr = 0; char feasable = 1;
+	int active_edges = 0;
 	for (int i = 0; i < nnodes-1 && feasable; i++)
 	{
 		visited[curr] = 1;
@@ -296,6 +340,7 @@ int xstar2succ(double* xstar, int* succ, int nnodes)
 				curr = h;
 				// feasable if a node h successor of curr was found
 				feasable = 1;
+				active_edges++;
 				break;
 			}
 		}
@@ -305,7 +350,7 @@ int xstar2succ(double* xstar, int* succ, int nnodes)
 	if (feasable) succ[curr] = 0;
 
 	free(visited);
-	return feasable;
+	return feasable && active_edges == nnodes;
 }
 
 int succ2xstar(int* succ, double* xstar, int nnodes)
@@ -314,16 +359,50 @@ int succ2xstar(int* succ, double* xstar, int nnodes)
 	char* visited = NULL;	calloc_s(visited, nnodes, char);
 	// activate edges of FEASABLE solution
 	int curr = 0; char feasable = 1;
+	int active_edges = 0;
 	for (int i = 0; i < nnodes && feasable; i++)
 	{
-		xstar[xpos(curr, succ[curr], nnodes)] = 1.0;
-		feasable = !visited[curr];
-		visited[curr] = 1;
-		curr = succ[curr];
+		if (succ[curr] >= 0)
+		{
+			xstar[xpos(curr, succ[curr], nnodes)] = 1.0;
+			feasable = !visited[curr];
+			visited[curr] = 1;
+			curr = succ[curr];
+			active_edges++;
+		}
 	}
 
 	free(visited);
-	return feasable;
+	return feasable && active_edges == nnodes;
+}
+
+int succ2chromo(int* succ, int* chromo, int nnodes)
+{
+	int curr = 0;
+	int active_edges = 0;
+	for (int i = 0; i < nnodes; i++)
+	{
+		if (succ[curr] >= 0)
+		{
+			chromo[i] = curr;
+			curr = succ[curr];
+			active_edges++;
+		}
+	}
+
+	return active_edges == nnodes;
+}
+
+int chromo2succ(int* succ, int* chromo, int nnodes)
+{
+	int active_edges = 0;
+	for (int i = 0; i < nnodes-1; i++)
+	{
+		succ[chromo[i]] = chromo[i+1];
+	}
+	succ[chromo[nnodes-1]] = chromo[0];
+
+	return active_edges == nnodes;
 }
 
 
@@ -333,25 +412,44 @@ int convert_solution(Solution* sol, solformat format)
 	if (sol->format == format) return 1;
 
 	int result = 1;
-	// if the needed format is not available, produce it
-	if (sol->format != SOLFORMAT_BOTH)
+
+	// let f = format
+	// let s = sol->format
+
+	// add = in f and not in s = f & ~s
+	solformat add_formats = format & ~sol->format;
+	// rem = not in f and in s = ~f & s
+	solformat rem_formats = ~format & sol->format;
+	// use a base format to convert
+	solformat base_format = solformat_collapse(sol->format);
+	if (base_format == SOLFORMAT_NOFORMAT) print_error(ERR_OPT_SOLFORMAT_NOTSET, NULL);
+
+	// add formats
+	solformat needed_format = 1;
+	int feasable = 1;
+	for (int i = 0; i < NUM_SOLFORMATS && feasable; i++)
 	{
-		char need_succ = format == SOLFORMAT_SUCC || (format == SOLFORMAT_BOTH && sol->format == SOLFORMAT_XSTAR);
-		char need_xstar = format == SOLFORMAT_XSTAR || (format == SOLFORMAT_BOTH && sol->format == SOLFORMAT_SUCC);
-
-		if (need_succ) {
-			arr_malloc_s(sol->succ, sol->nnodes, int);
-			result = xstar2succ(sol->xstar, sol->succ, sol->nnodes);
+		if (add_formats & needed_format)
+		{
+			// here, surely needed_format != base_format
+			// then apply allocation and transformation
+			FORMAT2FORMAT(sol, base_format, needed_format, feasable);
 		}
-		if (need_xstar) {
-			arr_malloc_s(sol->xstar, (int)(sol->nnodes*(sol->nnodes-1)/2), double);
-			result = succ2xstar(sol->succ, sol->xstar, sol->nnodes);
-		}
-
+		needed_format = needed_format << 1;
 	}
-	// free the format not needed
-	if		(format == SOLFORMAT_XSTAR) free_s(sol->succ);
-	else if (format == SOLFORMAT_SUCC)	free_s(sol->xstar);
+
+	solformat notneeded_format = 1;
+	for (int i = 0; i < NUM_SOLFORMATS && feasable; i++)
+	{
+		if (rem_formats & notneeded_format)
+		{
+			// here, surely notneeded_format is not in "format"
+			// then apply removal
+			REMOVE_FORMAT(sol, notneeded_format);
+		}
+		notneeded_format = notneeded_format << 1;
+	}
+
 	sol->format = format;
 
 	return result;
@@ -390,15 +488,196 @@ void empty_solution(Solution* sol, solformat format, int nnodes)
 	sol->nnodes = nnodes;
 	sol->format = format;
 
-	if (format == SOLFORMAT_SUCC || format == SOLFORMAT_BOTH)
+	if (format & SOLFORMAT_SUCC)
 		arr_malloc_s(sol->succ, sol->nnodes, int);
+	else sol->succ = NULL;
 
-	if (format == SOLFORMAT_XSTAR || format == SOLFORMAT_BOTH)
+	if (format & SOLFORMAT_XSTAR)
 		arr_malloc_s(sol->xstar, (int)(sol->nnodes * (sol->nnodes - 1) / 2.0), double);
+	else sol->xstar = NULL;
+
+	if (format & SOLFORMAT_CHROMO)
+		arr_malloc_s(sol->chromo, sol->nnodes, int);
+	else sol->chromo = NULL;
 
 	// use a big number for cost
-	sol->cost = 1e100;
+	sol->cost = INFINITY;
+	// set optimal
+	sol->optimal = 0;
+
+}
+
+void clear_solution(Solution* sol)
+{
+	int nnodes = sol->nnodes;
+	solformat format = sol->format;
+
+	if (format & SOLFORMAT_SUCC)
+		for (int i = 0; i < nnodes; i++) sol->succ[i] = -1;
+
+	if (format & SOLFORMAT_XSTAR)
+		for (int i = 0; i < (int)(sol->nnodes * (sol->nnodes - 1) / 2.0); i++) sol->xstar[i] = 0.0;
+
+	if (format & SOLFORMAT_CHROMO)
+		for (int i = 0; i < nnodes; i++) sol->chromo[i] = -1;
+
+	// reset cost
+	sol->cost = 0;
+	// set optimal
+	sol->optimal = 0;
+	sol->handle_node = -1;
+}
+
+void add_edge_solution(Solution* sol, int i, int j, double cost)
+{
+	solformat format = sol->format;
+
+	// add edge
+	if (format & SOLFORMAT_CHROMO)
+	{
+		// convert solution to succ and disable chromo
+		convert_solution(sol, (format | SOLFORMAT_SUCC ) & ~SOLFORMAT_CHROMO);
+		// add the edge
+		add_edge_solution(sol, i, j, cost);
+		// convert back to the original format
+		convert_solution(sol, format);
+	}
+	else
+	{
+		if (format & SOLFORMAT_SUCC) sol->succ[i] = j;
+		if (format & SOLFORMAT_XSTAR) sol->xstar[xpos(i, j, sol->nnodes)] += 1.0;
+	}
+
+	// add cost
+	sol->cost += cost;
+}
+
+char rem_edge_solution(Solution* sol, int i, int j, double cost)
+{
+	solformat format = sol->format;
+	char exists = 1;
+
+	if (format & SOLFORMAT_SUCC)
+	{
+		if (sol->succ[i] == j) sol->succ[i] = -1;
+		else if (sol->succ[j] == i) sol->succ[j] = -1;
+		else exists = 0;
+	}
+	if (format & SOLFORMAT_XSTAR)
+	{
+		int var_idx = xpos(i, j, sol->nnodes);
+		exists = is_one(sol->xstar[var_idx]);
+		if (exists) sol->xstar[var_idx] -= 1.0;
+	}
+	if (format & SOLFORMAT_CHROMO)
+		print_error(ERR_GENERIC_NOT_IMPL, "rem_edge_solution for SOLFORMAT_CHROMO");
+
+	if (exists)
+	{
+		sol->cost -= cost;
+		sol->optimal = 0;
+	}
+
+	return exists;
+}
+
+void shallow_copy_solution(Solution* dst, Solution* src)
+{
+	// deep copy params
+	dst->cost = src->cost;
+	dst->format = src->format;
+	dst->nnodes = src->nnodes;
+	dst->optimal = src->optimal;
+	dst->handle_node = src->handle_node;
+
+	// shallow copy arrays
+	if (dst->succ != NULL) free(dst->succ);
+	if (dst->xstar != NULL) free(dst->xstar);
+	if (dst->chromo != NULL) free(dst->chromo);
+	dst->succ = src->succ;
+	dst->xstar = src->xstar;
+	dst->chromo = src->chromo;
 	
+}
+
+void initialize_sol_iterator(SolutionIterator* iter, Solution* sol, int start_node)
+{
+	iter->sol = sol;
+	iter->curr = start_node;
+	if (sol->format & SOLFORMAT_CHROMO)	// search for starting node
+		for (iter->info = 0; iter->info < sol->nnodes && sol->chromo[iter->info] != start_node; iter->info++);
+	// else just start from 0
+	else iter->info = 0;
+
+	iter->start = start_node;
+}
+
+char next_node_in_solution(SolutionIterator* iter)
+{
+	Solution* sol = iter->sol;
+
+	// if there is next, produce next node
+	if (sol->format & SOLFORMAT_SUCC)
+	{
+		// get succ to curr
+		iter->curr = sol->succ[iter->curr];
+	}
+	else if (sol->format & SOLFORMAT_CHROMO)
+	{
+		// rotate position
+		iter->info = (iter->info + 1) % sol->nnodes;
+		// get next in position
+		iter->curr = sol->chromo[iter->info];
+	}
+	else if (sol->format & SOLFORMAT_XSTAR)
+	{
+		// find active edge in xstar
+		int i;
+		for (i = 0; i < sol->nnodes; i++)
+		{
+			// if it is not the previous and the edge is active
+			if (i != iter->info && is_one(sol->xstar[xpos(iter->curr, i, sol->nnodes)]))
+			{
+				iter->info = iter->curr;
+				iter->curr = i;
+				break;
+			}
+		}
+		if (i == sol->nnodes) iter->curr = -1;
+	}
+
+	// return a next if not back at start and if not a dead end
+	return iter->curr != iter->start && iter->curr != -1;
+}
+
+int compute_list_unvisited_nodes(Solution* sol, int* nodelist)
+{
+	char* visited = NULL;	calloc_s(visited, sol->nnodes, char);
+
+	SolutionIterator iter;
+	initialize_sol_iterator(&iter, sol, sol->handle_node);
+	// iterate through the tour
+	do
+	{
+		visited[iter.curr] = 1;
+	} while (next_node_in_solution(&iter));
+
+	// fill the list with unvisited nodes
+	int pos = 0;
+	for (int i = 0; i < sol->nnodes; i++)
+	{
+		if (!visited[i]) nodelist[pos++] = i;
+	}
+	// return 0 if all nodes are visited
+	if (pos == 0) return 0;
+
+	// fill remaining positions with -1
+	for (int i = pos; i < sol->nnodes; i++)
+	{
+		nodelist[i] = -1;
+	}
+	// return pos as list size
+	return pos;
 
 }
 

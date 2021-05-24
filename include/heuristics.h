@@ -24,6 +24,7 @@ typedef struct Heuristic
 	solformat refine_sol_format;
 
 	char requires_cplex;
+	char to_timelimit;
 
 } Heuristic;
 
@@ -58,6 +59,8 @@ typedef struct
 {
 	char variant;
 	double values[HEUR_HARDFIX_VALUES];
+	int rounds_nonimprove;
+	int max_rounds;
 	int progress;
 } HardfixingData;
 
@@ -66,6 +69,8 @@ typedef struct
 {
 	char variant;
 	int values[HEUR_LOCALBRANCH_VALUES];
+	int rounds_nonimprove;
+	int max_rounds;
 	int progress;
 } LocalbranchingData;
 
@@ -83,6 +88,7 @@ typedef struct
 // ******************************** AUXILIARY FUNCTIONS ******************************
 void decode_heuristic(OptData* optdata, Heuristic* heur);
 void resolve_solformats(Heuristic* heur);
+char extramilage_move(Solution* sol, graph* g, GraspData* grasp);
 
 // ********************************* BACKBONE METHODS ********************************
 void solve_heuristically(OptData* optdata);
@@ -102,7 +108,7 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 // ***************************** REFINEMENT HEURISTICS *****************************
 // solution refinement procedures which expect a feasable solution and always return a
 // better solution if it is possible
-#define IMPROVEMENT_RATIO 0.90
+#define IMPROVEMENT_RATIO 0.995
 
 void refine_hardfixing(OptData* optdata, Solution* sol, void* data, double timelim);
 void refine_localbranching(OptData* optdata, Solution* sol, void* data, double timelim);

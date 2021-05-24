@@ -25,6 +25,9 @@ void coord_transform(graph* g);
 void geo_transform(graph* g);
 // utility functions
 double degrees_to_radians(double coord);
+// get coordinates
+double ggetx(graph* g, int idx);
+double ggety(graph* g, int idx);
 
 // ********* distance computation functions *********
 // master function
@@ -34,6 +37,9 @@ double euc_dist(int i, int j, graph* g);
 double att_dist(int i, int j, graph* g);
 double geo_dist(int i, int j, graph* g);
 int dist_to_int(double distance);
+// array functions
+void compute_dists(double* dists, graph* g);
+double delta_cost(int a, int b, int c, graph* g);
 
 // variable index in CPLEX functions
 int xpos(int i, int j, int nnodes);
@@ -61,10 +67,36 @@ void radix_sort(int ecount, int** idxlist, unsigned int** dstlist);
 // conversion methods for a feasable solution
 int xstar2succ(double* xstar, int* succ, int nnodes);	// O(n^2) complexity
 int succ2xstar(int* succ, double* xstar, int nnodes);	// O(n) complexity
+int succ2chromo(int* succ, int* chromo, int nnodes);	// O(n) complexity
+int chromo2succ(int* chromo, int* succ, int nnodes);	// O(n) complexity
 int convert_solution(Solution* sol, solformat format);
 
 // handle solution
 void empty_solution(Solution* sol, solformat format, int nnodes);
+void clear_solution(Solution* sol);
+
+/**
+* add the edge (i,j) into the solution with the following complexity:
+* -	xstar	O(1)
+* -	succ	O(1)
+* -	chromo	O(n)	inefficient!
+*/
+void add_edge_solution(Solution* sol, int i, int j, double cost);
+char rem_edge_solution(Solution* sol, int i, int j, double cost);
+void shallow_copy_solution(Solution* dst, Solution* src);
+
+typedef struct
+{
+	Solution* sol;
+	int start;
+	int curr;
+	int info;
+} SolutionIterator;
+
+void initialize_sol_iterator(SolutionIterator* iter, Solution* sol, int start_node);
+char next_node_in_solution(SolutionIterator* iter);
+
+int compute_list_unvisited_nodes(Solution* sol, int* nodelist);
 
 // log datastructure function
 void log_datastruct(void* object, int type, int runlvl, int loglvl);
@@ -74,5 +106,29 @@ void print_directed_sol(graph* g, double* xstar);
 void print_undirected_sol(graph* g, double* xstar);
 void print_xstar(size_t size, double* xstar);
 
+#define FORMAT2FORMAT(sol, f1, f2, result)\
+if ((f2) == SOLFORMAT_XSTAR)\
+{\
+	arr_malloc_s(sol->xstar, (int)(sol->nnodes*(sol->nnodes-1)/2.0), double);\
+	if		((f1) == SOLFORMAT_SUCC)	result = succ2xstar(sol->succ, sol->xstar, sol->nnodes);\
+	else if ((f1) == SOLFORMAT_CHROMO)	print_error(ERR_GENERIC_NOT_IMPL, "chromo2xstar");\
+}\
+else if ((f2) == SOLFORMAT_SUCC)\
+{\
+	arr_malloc_s(sol->succ, sol->nnodes, int);\
+	if		((f1) == SOLFORMAT_XSTAR)	result = xstar2succ(sol->xstar, sol->succ, sol->nnodes);\
+	else if ((f1) == SOLFORMAT_CHROMO)	result = chromo2succ(sol->chromo, sol->succ, sol->nnodes);\
+}\
+else if ((f2) == SOLFORMAT_CHROMO)\
+{\
+	arr_malloc_s(sol->chromo, sol->nnodes, int);\
+	if		((f1) == SOLFORMAT_XSTAR)	print_error(ERR_GENERIC_NOT_IMPL, "xstar2chromo");\
+	else if ((f1) == SOLFORMAT_SUCC)	result = succ2chromo(sol->succ, sol->chromo, sol->nnodes);\
+}
+
+#define REMOVE_FORMAT(sol, f)\
+if		(f == SOLFORMAT_XSTAR)	free_s(sol->xstar);\
+else if (f == SOLFORMAT_SUCC)	free_s(sol->succ);\
+else if (f == SOLFORMAT_CHROMO) free_s(sol->chromo);
 
 #endif

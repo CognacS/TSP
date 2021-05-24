@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cplex.h>
+#include "random.h"
 
 
 /* ***********************************************************************************
@@ -158,12 +159,16 @@ typedef struct {
 #define DEF_XSTAR NULL
 #define DEF_SUCC NULL
 
+#define NUM_SOLFORMATS 3
 typedef enum
 {
-	SOLFORMAT_XSTAR,
-	SOLFORMAT_SUCC,
-	SOLFORMAT_BOTH
+	SOLFORMAT_SUCC		= 0b00000001,
+	SOLFORMAT_XSTAR		= 0b00000010,
+	SOLFORMAT_CHROMO	= 0b00000100
 } solformat;
+
+#define SOLFORMAT_NOFORMAT 0b00000000
+#define SOLFORMAT_ALLFORMAT (SOLFORMAT_SUCC | SOLFORMAT_XSTAR | SOLFORMAT_CHROMO)
 
 /**
 * Solution package for compatibility purpose
@@ -172,10 +177,13 @@ typedef struct
 {
 	double* xstar;		// xstar format compatible with cplex methods
 	int* succ;			// succ format compatible with heuristic methods
+	int* chromo;		// chromosome format compatible with genetic algorithms
 
+	int handle_node;	// node which is assured to belong to the tour
 	int nnodes;			// size of the solution
 	double cost;		// cost of solution
 	solformat format;	// describes which format(s) is(are) currently correct
+	char optimal;		// flag to signal global (or local) optimum
 
 } Solution;
 
@@ -247,6 +255,11 @@ void free_instance		(instance* inst);
 *						AUXILIARY STRUCTURES AND FUNCTIONS
 *********************************************************************************** */
 
+// ************* solformats *************
+int solformat2num(solformat format);
+solformat solformat_collapse(solformat format);
+
+// ************* linked cell *************
 typedef struct Cell
 {
 	double x;
@@ -254,6 +267,7 @@ typedef struct Cell
 	struct Cell* next;
 } Cell;
 
+// ************* linked list *************
 typedef struct
 {
 	Cell* start;
@@ -261,9 +275,33 @@ typedef struct
 } LinkedList;
 
 LinkedList* newLinkedList();
-
 int LL_is_empty(LinkedList* list);
 void LL_add_value(LinkedList* list, double x, double y);
 void LL_free(LinkedList* list);
+
+// ************* ordered indexed array *************
+#define MAX_INDEX_SIZE 3
+typedef struct
+{
+	int arr[MAX_INDEX_SIZE];
+} Index;
+
+typedef struct
+{
+	Index index;
+	double value;
+} IndexedValue;
+
+// Ordered Indexed array has elements ordered from bigger to smaller, i.e.: oiarr[0] has the biggest value
+inline char OIA_eligible(IndexedValue* oiarr, double newvalue) { return oiarr[0].value > newvalue; }
+char OIA_insert(IndexedValue* oiarr, int size, IndexedValue newelem);
+void OIA_clear(IndexedValue* oiarr, int size);
+IndexedValue OIA_pack1(int index, double value);
+IndexedValue OIA_pack3(int a, int b, int c, double value);
+inline IndexedValue OIA_best(IndexedValue* oiarr, int size) { return oiarr[size-1]; }
+IndexedValue OIA_choose(IndexedValue* oiarr, int size, char includebest);
+
+void IV_deepcopy(IndexedValue* dst, IndexedValue* src);
+
 
 #endif   /* TSP_DATA_H_ */ 

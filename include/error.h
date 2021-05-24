@@ -24,6 +24,7 @@ typedef enum
 	ERR_OPT_PROCEDURE = 			200,
 	ERR_OPT_CPLEX_REDEFINITION =	201,
 	ERR_OPT_SOLPTR_INCONSISTENT =	202,
+	ERR_OPT_SOLFORMAT_NOTSET	=	203,
 	// cplex errors
 	ERR_CPLEX = 					300,
 	// general purpose 
@@ -32,6 +33,7 @@ typedef enum
 	ERR_NO_MEM_FOR_ALLOC = 			402,
 	ERR_UNKNOWN_ERR =				403,
 	ERR_RNG_ERR =					404,
+	ERR_GENERIC_NOT_IMPL =			405,
 	// models errors
 	ERR_WRONG_TSP_PROCEDURE = 		500,
 	ERR_MODEL_NOT_IMPL = 			501,
@@ -83,11 +85,13 @@ static const numbered_str error_msgs[] =
 	{ERR_OPT_PROCEDURE,				"error in optimization procedure"},
 	{ERR_OPT_CPLEX_REDEFINITION,	"trying to redefine cplex environment, close it first"},
 	{ERR_OPT_SOLPTR_INCONSISTENT,	"pointer is invalid for solution format:"},
+	{ERR_OPT_SOLFORMAT_NOTSET,		"solution format not set (no solution available?)"},
 	{ERR_CPLEX,						"CPX error:"},
 	{ERR_INCORRECT_FUNCTION_IMPL,	"function error:"},
 	{ERR_INVALID_FUNC_ARGS,			"invalid input arguments in function: "},
 	{ERR_NO_MEM_FOR_ALLOC,			"NULL pointer returned when allocating array:"},
 	{ERR_RNG_ERR,					"the Random Number Generator procedure returned an error"},
+	{ERR_GENERIC_NOT_IMPL,			"feature not implemented:"},
 	{ERR_WRONG_TSP_PROCEDURE,		"wrong TSP solver procedure used for TSP variant"},
 	{ERR_MODEL_NOT_IMPL,			"the requested model was not implemented:"},
 	{ERR_MODEL_INCONSISTENT,		"generic inconsistency: "},

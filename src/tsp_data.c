@@ -137,6 +137,18 @@ void free_instance(instance* inst)
 *						AUXILIARY STRUCTURES AND FUNCTIONS
 *********************************************************************************** */
 
+int solformat2num(solformat format)
+{
+	int shift = 0;
+	for (shift = 0; shift < NUM_SOLFORMATS && !(format & 1); shift++, format = format >> 1);
+	return shift;
+}
+
+solformat solformat_collapse(solformat format)
+{
+	return  (1 << solformat2num(format)) & SOLFORMAT_ALLFORMAT;
+}
+
 LinkedList* newLinkedList()
 {
 	LinkedList* ll;	malloc_s(ll, LinkedList);
@@ -178,4 +190,63 @@ void LL_free(LinkedList* list)
 		free(list->end);
 	}
 	free(list);
+}
+
+char OIA_insert(IndexedValue* oiarr, int size, IndexedValue newelem)
+{
+	IndexedValue swap_elem;
+	char inserted = 0;
+
+	// if eligible place at last place
+	if (oiarr[0].value > newelem.value)
+	{
+		oiarr[0] = newelem;
+		inserted = 1;
+	}
+	// use insertion (from insertion sort)
+	for (int i = 1; i < size && oiarr[i].value > oiarr[i-1].value; i++)
+	{
+		// swap
+		swap_elem = oiarr[i];
+		oiarr[i] = oiarr[i - 1];
+		oiarr[i - 1] = swap_elem;
+	}
+
+	return inserted;
+}
+
+void OIA_clear(IndexedValue* oiarr, int size)
+{
+	for (int i = 0; i < size; i++)
+	{
+		oiarr[i].index.arr[0] = -1;	oiarr[i].value = INFINITY;
+	}
+}
+
+IndexedValue OIA_pack1(int index, double value)
+{
+	return (IndexedValue) { (Index) { {index, -1, -1} }, value };
+}
+IndexedValue OIA_pack3(int a, int b, int c, double value)
+{
+	return (IndexedValue) { (Index) { {a, b, c} }, value };
+}
+
+IndexedValue OIA_choose(IndexedValue* oiarr, int size, char includebest)
+{
+	// compute max size (max index + 1)
+	int max_size = includebest ? size : size - 1;
+	// compute min index (avoid unasigned elements)
+	int min_idx;
+	for (min_idx = 0; min_idx < size && oiarr[min_idx].index.arr[0] == -1; min_idx++);
+	// choose random index
+	int rand_idx = (int)(random() * (max_size - min_idx)) + min_idx;
+
+	return oiarr[rand_idx];
+}
+
+void IV_deepcopy(IndexedValue* dst, IndexedValue* src)
+{
+	dst->index = src->index;
+	dst->value = dst->value;
 }

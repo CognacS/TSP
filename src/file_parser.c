@@ -26,8 +26,8 @@ void random_instance(graph* g, char* line)
 	// generate random nodes inside the square
 	for (int i = 0; i < g->nnodes; i++)
 	{
-		g->xcoord[i] = ((double)rand() / RAND_MAX) * RI_X_SIZE + RI_X_MIN;
-		g->ycoord[i] = ((double)rand() / RAND_MAX) * RI_Y_SIZE + RI_Y_MIN;
+		g->xcoord[i] = random() * RI_X_SIZE + RI_X_MIN;
+		g->ycoord[i] = random() * RI_Y_SIZE + RI_Y_MIN;
 	}
 
 }

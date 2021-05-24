@@ -13,5 +13,8 @@
 */
 int find_conncomps_dfs(graph* g, const double* xstar, int* succ, int* comp, int* ncomp);
 
+char counterclockwise(graph* g, int p, int q, int r);
+void build_convex_hull(graph* g, Solution* sol);
+void furthest_nodes_sol(graph* g, Solution* sol);
 
 #endif
