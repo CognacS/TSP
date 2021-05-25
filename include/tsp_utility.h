@@ -53,6 +53,8 @@ int is_zero_strict(double num);
 int is_one_strict(double num);
 
 // FUNCTIONS FOR HANDLING SOLUTIONS
+// count all edges (not self edges) in a group of nodes
+inline int complete_graph_edges(int nnodes) { return (int)(nnodes * (nnodes - 1) / 2.0); }
 // count how many edges are activated in xstar
 size_t count_active_edges(size_t size, double* xstar);
 // extract active edges and return a list of pairs (i, j) with indices (2k, 2k+1), k = 0,1,...,nnodes
@@ -71,6 +73,9 @@ int succ2chromo(int* succ, int* chromo, int nnodes);	// O(n) complexity
 int chromo2succ(int* chromo, int* succ, int nnodes);	// O(n) complexity
 int convert_solution(Solution* sol, solformat format);
 
+// check functions
+char check_succ(int* succ, int nnodes);
+
 // handle solution
 void empty_solution(Solution* sol, solformat format, int nnodes);
 void clear_solution(Solution* sol);
@@ -84,6 +89,7 @@ void clear_solution(Solution* sol);
 void add_edge_solution(Solution* sol, int i, int j, double cost);
 char rem_edge_solution(Solution* sol, int i, int j, double cost);
 void shallow_copy_solution(Solution* dst, Solution* src);
+void deep_copy_solution(Solution* dst, Solution* src);
 
 typedef struct
 {
@@ -105,6 +111,12 @@ void log_datastruct(void* object, int type, int runlvl, int loglvl);
 void print_directed_sol(graph* g, double* xstar);
 void print_undirected_sol(graph* g, double* xstar);
 void print_xstar(size_t size, double* xstar);
+
+#define DEEP_COPY_ARR(dst, src, size)\
+do{\
+for(int i = 0; i < (size); i++)\
+	dst[i] = src[i];\
+} while(0)
 
 #define FORMAT2FORMAT(sol, f1, f2, result)\
 if ((f2) == SOLFORMAT_XSTAR)\

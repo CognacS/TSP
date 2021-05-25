@@ -56,6 +56,10 @@ int CC_add_sec_on_subtours(void* env, void* lp, instance* inst, void* args, doub
 // callback function to add a user cut in CPlex from Concorde
 int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args);
 
+// 2-opt move
+double move_2opt(int* succ, graph* g, char allow_unimproving);
+double remove_crossings(int* succ, graph* g);
+
 // ********** MODELS **********
 void build_model_base_undirected(OptData* optdata);
 

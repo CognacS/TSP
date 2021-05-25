@@ -355,6 +355,9 @@ int xstar2succ(double* xstar, int* succ, int nnodes)
 
 int succ2xstar(int* succ, double* xstar, int nnodes)
 {
+	// clear xstar
+	memset(xstar, 0, (int)(nnodes * (nnodes - 1) / 2.0) * sizeof(double));
+
 	// array for visited nodes
 	char* visited = NULL;	calloc_s(visited, nnodes, char);
 	// activate edges of FEASABLE solution
@@ -455,6 +458,18 @@ int convert_solution(Solution* sol, solformat format)
 	return result;
 }
 
+char check_succ(int* succ, int nnodes)
+{
+	char correct = 1;
+	int curr = 0;
+	for (int i = 0; (i < nnodes) && correct; i++)
+	{
+		correct = (succ[i] >= 0) && (succ[i] < nnodes);
+		if (correct) curr = succ[curr];
+	}
+	return correct && curr == 0;
+}
+
 
 void log_datastruct(void* object, int type, int runlvl, int loglvl)
 {
@@ -493,7 +508,7 @@ void empty_solution(Solution* sol, solformat format, int nnodes)
 	else sol->succ = NULL;
 
 	if (format & SOLFORMAT_XSTAR)
-		arr_malloc_s(sol->xstar, (int)(sol->nnodes * (sol->nnodes - 1) / 2.0), double);
+		arr_malloc_s(sol->xstar, complete_graph_edges(nnodes), double);
 	else sol->xstar = NULL;
 
 	if (format & SOLFORMAT_CHROMO)
@@ -516,7 +531,7 @@ void clear_solution(Solution* sol)
 		for (int i = 0; i < nnodes; i++) sol->succ[i] = -1;
 
 	if (format & SOLFORMAT_XSTAR)
-		for (int i = 0; i < (int)(sol->nnodes * (sol->nnodes - 1) / 2.0); i++) sol->xstar[i] = 0.0;
+		for (int i = 0; i < complete_graph_edges(nnodes); i++) sol->xstar[i] = 0.0;
 
 	if (format & SOLFORMAT_CHROMO)
 		for (int i = 0; i < nnodes; i++) sol->chromo[i] = -1;
@@ -590,14 +605,32 @@ void shallow_copy_solution(Solution* dst, Solution* src)
 	dst->optimal = src->optimal;
 	dst->handle_node = src->handle_node;
 
-	// shallow copy arrays
+	// free all that was allocated
 	if (dst->succ != NULL) free(dst->succ);
 	if (dst->xstar != NULL) free(dst->xstar);
 	if (dst->chromo != NULL) free(dst->chromo);
+	// shallow copy arrays
 	dst->succ = src->succ;
 	dst->xstar = src->xstar;
 	dst->chromo = src->chromo;
 	
+}
+
+void deep_copy_solution(Solution* dst, Solution* src)
+{
+	// deep copy params
+	dst->cost = src->cost;
+	dst->format = src->format;
+	dst->nnodes = src->nnodes;
+	dst->optimal = src->optimal;
+	dst->handle_node = src->handle_node;
+
+	int xstar_size = complete_graph_edges(src->nnodes);
+	// free all that was allocated
+	if (dst->succ != NULL) DEEP_COPY_ARR(dst->succ, src->succ, src->nnodes);
+	if (dst->xstar != NULL) DEEP_COPY_ARR(dst->xstar, src->xstar, xstar_size);
+	if (dst->chromo != NULL) DEEP_COPY_ARR(dst->chromo, src->chromo, src->nnodes);
+
 }
 
 void initialize_sol_iterator(SolutionIterator* iter, Solution* sol, int start_node)

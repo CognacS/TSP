@@ -140,19 +140,33 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 	{
 	case 'i':
 		heur->backbone_heur = backbone_iter_local_search;
-		malloc_s(data, IterativeData);
 		// construct time
 		token = strtok(params, ",");
-		((IterativeData*)data)->construct_timelimit = atof(token);
+		heur->construct_timelimit = atof(token);
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "construct_time: \"%s\"", token);
 		// refine time
 		token = strtok(NULL, ",");
-		((IterativeData*)data)->refine_timelimit = atof(token);
+		heur->refine_timelimit = atof(token);
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: \"%s\"", token);
 		// assign data
-		heur->backbone_data = data;
-		heur->backbone_sol_format = SOLFORMAT_XSTAR;
+		heur->backbone_data = NULL;
+		heur->backbone_sol_format = SOLFORMAT_XSTAR | SOLFORMAT_SUCC;
 		heur->to_timelimit = 0;
+		break;
+	case 'v':
+		heur->backbone_heur = backbone_var_neighborhood_search;
+		// construct time
+		token = strtok(params, ",");
+		heur->construct_timelimit = atof(token);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "construct_time: \"%s\"", token);
+		// refine time
+		token = strtok(NULL, ",");
+		heur->refine_timelimit = atof(token);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: \"%s\"", token);
+		// assign data
+		heur->backbone_data = NULL;
+		heur->backbone_sol_format = SOLFORMAT_SUCC;
+		heur->to_timelimit = 1;
 		break;
 	default:
 		print_error_ext(ERR_HEUR_DECODE, "unknown backbone method: %c", method);
@@ -397,82 +411,71 @@ char extramileage_move(Solution* sol, graph* g, GraspData* grasp)
 	return unvisited_nodes_num > 0;
 }
 
-double move_2opt(int* succ, graph* g, char allow_unimproving)
+/* **************************************************************************************************
+*				KICK SOLUTION IN A RANDOM POSITION IN ITS K-OPT NEIGHBORHOOD:
+*			- graph with N nodes
+*			- select randomly k<=N nodes: n1, n2,... nk
+*			- pick their respective succ: s1, s2,... sk
+*			- shift all succ such that succ[ni] = s_{(i+1) mod N}
+************************************************************************************************** */
+void kopt_kick(Solution* sol, graph* g, int k)
 {
-	// define edges ab and cd as those to replace
-	// define edges ac and bd as those to insert
-	double ab_dist, cd_dist, ac_dist, bd_dist;
-	int a, b, c, d;
-	int a_min = 0, b_min = 0, c_min = 0, d_min = 0;
-	double delta_min = INFINITY;
-	double delta_curr;
+	int nnodes = g->nnodes;
 
-	a = 0;
-	// for each node of the tour
-	for (int i = 0; i < g->nnodes; i++)
+	// choose k edges to be removed
+	int* chosen_nodes = NULL;	arr_malloc_s(chosen_nodes, k, int);
+	int* succ_nodes = NULL;		arr_malloc_s(succ_nodes, k, int);
+	int* chosen_pos = NULL;			calloc_s(chosen_pos, nnodes, int);
+	int node;
+
+	for (int i = 0; i < k; i++)
 	{
-		b = succ[a];
-		ab_dist = dist(a, b, g);
-		
-		// c starts after b
-		c = succ[b];
-		// for each remaining edge in the tour
-		// apart from (?, a), (a,b), (b, ?)
-		for (int j = 0; j < g->nnodes - 3; j++)
-		{
-			d = succ[c];
-			cd_dist = dist(c, d, g);
-			ac_dist = dist(a, c, g);
-			bd_dist = dist(b, d, g);
-
-			delta_curr = (ac_dist + bd_dist) - (ab_dist + cd_dist);
-			if (delta_curr < delta_min)
-			{
-				delta_min = delta_curr;
-				a_min = a;
-				b_min = b;
-				c_min = c;
-				d_min = d;
-			}
-			c = d;
-			d = succ[d];
-
-		}
-		// get to the next edge
-		a = b;
-		b = succ[b];
-	}
-
-	// if this is an improving move (delta<0)
-	// or non improving moves are allowed
-	if (delta_min < 0 || allow_unimproving)
-	{
-		// remember next of b_min
-		int new_next = b_min;
-		int new_curr = succ[b_min];
-		int new_prev;
-
-		succ[a_min] = c_min;
-		succ[b_min] = d_min;
-
-		// reverse path from b_min to c_min
+		// check that the new generated node is different from all others
 		do
 		{
-			// swap direction
-			new_prev = succ[new_curr];
-			succ[new_curr] = new_next;
+			node = (int)(random() * nnodes);
+		} while (chosen_pos[node]);
 
-			// shift
-			new_next = new_curr;
-			new_curr = new_prev;
-
-		} while (new_next != c_min);
-
-
-		return delta_min;
+		// if it was not chosen, choose it
+		chosen_nodes[i] = node;
+		chosen_pos[node] = i+1;
 	}
 
-	return 0;
+	// reorder chosen nodes in tour order of appearance
+	int curr = 0;
+	int nodes_found = 0;
+	int swap_node;
+	for (int i = 0; i < nnodes; i++)
+	{
+		// if curr node was chosen, then swap it with the first in line
+		if (chosen_pos[curr])
+		{
+			swap_node = chosen_nodes[nodes_found];
+			chosen_nodes[nodes_found] = curr;
+			chosen_nodes[chosen_pos[curr]-1] = swap_node;
+			chosen_pos[swap_node] = chosen_pos[curr];
+			// also set succ
+			succ_nodes[nodes_found] = sol->succ[curr];
+			nodes_found++;
+		}
+
+		curr = sol->succ[curr];
+	}
+
+	// accumulate cost and shift successors in reverse
+	double cost_add = 0;
+	for (int i = 0; i < k; i++)
+	{
+		node = chosen_nodes[i];
+		cost_add -= dist(node, sol->succ[node], g);
+		sol->succ[node] = succ_nodes[(k + i - 2) % k];
+		cost_add += dist(node, sol->succ[node], g);
+	}
+
+	// change overall cost of solution
+	sol->cost += cost_add;
+
+	free(chosen_nodes); free(succ_nodes); free(chosen_pos);
 }
 
 /* **************************************************************************************************
@@ -486,7 +489,6 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 	// ******************************** SETUP ********************************
 	// unpack
 	instance* inst = optdata->inst;
-	IterativeData* bb_data = (IterativeData*)data;
 
 	// startup solution and format it for construction
 	empty_solution(sol, heur->construct_sol_format, inst->inst_graph.nnodes);
@@ -494,7 +496,8 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 	// ************************* CONSTRUCT STARTING SOLUTION *************************
 	double timelimit, time_passed = 0, time_phase, t_start;
 	// compute timelimit for constructive heuristic
-	timelimit = min(residual_time(inst), bb_data->construct_timelimit);
+	timelimit = min(residual_time(inst), heur->construct_timelimit);
+	log_line(VERBOSITY, LOGLVL_INFO, "************ STARTING CONSTRUCTION PHASE ************");
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Construction should run for %f sec.s", timelimit);
 
 	// construct starting heuristic solution
@@ -507,7 +510,7 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 
 	// log
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Construction done in %f sec.s", time_phase);
-	log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE]: Obj value after construction = %f", sol->cost);
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Obj value after construction = %f", sol->cost);
 	if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog, time_passed, sol->cost);
 	if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, sol);
 
@@ -515,12 +518,15 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 	// convert solution to the refinement format
 	if (!convert_solution(sol, heur->refine_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
 
+	int epoch = 0;
+
 	// iterate until time expires or the refining heuristic cannot find a better solution (local opt)
 	while (!time_limit_expired(inst) && (heur->to_timelimit || !sol->optimal))
 	{
 		// ***************************** REFINE SOLUTION *****************************
 		// compute timelimit for refinement heuristic
-		timelimit = min(residual_time(inst), bb_data->refine_timelimit);
+		timelimit = min(residual_time(inst), heur->refine_timelimit);
+		log_line_ext(VERBOSITY, LOGLVL_MSG, "************ STARTING EPOCH %d ************", epoch++);
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] 1 iteration of refinement should run for %f sec.s", timelimit);
 
 		// refine heuristic solution
@@ -533,12 +539,128 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 
 		// log
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] 1 iteration of refinement done in %f sec.s", time_phase);
-		log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE]: Obj value after refinement = %f", sol->cost);
+		log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Obj value after refinement = %f", sol->cost);
 		if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog, time_passed, sol->cost);
 		if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, sol);
 	}
 
 	if (sol->optimal) log_line(VERBOSITY, LOGLVL_INFO, "[INFO]: Local optimum was found!");
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Total number of epochs: %d", epoch);
+
+}
+
+/* **************************************************************************************************
+*					BACKBONE METHOD: ITERATIVE LOCAL SEARCH
+*			- construct a starting solution
+*			- refine iteratively the solution until time expires (or if needed until
+*				a local optimum is found)
+************************************************************************************************** */
+void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data)
+{
+	// ******************************** SETUP ********************************
+	// unpack
+	instance* inst = optdata->inst;
+
+	// startup solution and format it for construction
+	empty_solution(sol, heur->construct_sol_format, inst->inst_graph.nnodes);
+
+	// ************************* CONSTRUCT STARTING SOLUTION *************************
+	double timelimit, time_passed = 0, time_phase, t_start;
+	// compute timelimit for constructive heuristic
+	timelimit = min(residual_time(inst), heur->construct_timelimit);
+	log_line(VERBOSITY, LOGLVL_INFO, "************ STARTING CONSTRUCTION PHASE ************");
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Construction should run for %f sec.s", timelimit);
+
+	// construct starting heuristic solution
+	t_start = second();
+	// *********** CONSTRUCT ***********
+	heur->construct_heur(optdata, sol, heur->construct_data, timelimit);
+	// *********************************
+	time_phase = second() - t_start;
+	time_passed += time_phase;
+
+	// log
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Construction done in %f sec.s", time_phase);
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Obj value after construction = %f", sol->cost);
+	if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog, time_passed, sol->cost);
+	if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, sol);
+
+	// ****************************** START ITERATIONS *******************************
+	// convert solution to the refinement format
+	if (!convert_solution(sol, heur->backbone_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
+
+	int epoch = 0;
+	int kick_k = 3;
+
+	// setup best and current solutions
+	Solution* best_sol = sol;
+	Solution st_curr_sol;
+	Solution* curr_sol = &st_curr_sol;
+	// initialize and copy best solution to the current solution
+	empty_solution(curr_sol, best_sol->format, best_sol->nnodes);
+	deep_copy_solution(curr_sol, best_sol);
+
+	// iterate until time expires or the refining heuristic cannot find a better solution (local opt)
+	while (!time_limit_expired(inst) && (heur->to_timelimit || !sol->optimal))
+	{
+		// ***************************** REFINE SOLUTION *****************************
+		log_line_ext(VERBOSITY, LOGLVL_MSG, "************ STARTING EPOCH %d ************", epoch++);
+		printf("CORRECTNESS BEFORE 2-OPT MOVE: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
+		// // convert solution to the refinement format
+		if (!convert_solution(curr_sol, heur->refine_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
+		// compute timelimit for refinement heuristic
+		timelimit = min(residual_time(inst), heur->refine_timelimit);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] 1 iteration of refinement should run for %f sec.s", timelimit);
+
+		// refine heuristic solution
+		t_start = second();
+		// *********** REFINE ***********
+		heur->refine_heur(optdata, curr_sol, heur->refine_data, timelimit);
+		// ******************************
+		time_phase = second() - t_start;
+		time_passed += time_phase;
+
+		// log
+		printf("CORRECTNESS BEFORE K-OPT KICK: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
+		if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_directed(&inst->inst_graph, curr_sol);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] 1 iteration of refinement done in %f sec.s", time_phase);
+
+		// ***************************** CHECK SOLUTION ******************************
+		// convert solution to the refinement format
+		if (!convert_solution(curr_sol, heur->backbone_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
+		// check if current solution is the best until now, if so swap them
+		if (curr_sol->cost < best_sol->cost)
+		{
+			// save curr solution as the new best solution
+			deep_copy_solution(best_sol, curr_sol);
+			// log new best solution
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: New best solution found, cost = %f", best_sol->cost);
+			if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog, time_passed, best_sol->cost);
+			if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_directed(&inst->inst_graph, best_sol);
+			// reset kick size
+			kick_k = 3;
+		}
+
+		// ****************************** KICK SOLUTION ******************************
+		// if the current solution is in a local optimum
+		if (curr_sol->optimal)
+		{
+			// kick the solution in its k-opt neighborhood
+			kopt_kick(curr_sol, &inst->inst_graph, kick_k);
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Kicked solution in its %d-OPT neighborhood", kick_k);
+			printf("CORRECTNESS AFTER K-OPT KICK: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
+			if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_directed(&inst->inst_graph, curr_sol);
+			// increase k
+			kick_k = min(kick_k+1, curr_sol->nnodes);
+		}
+	}
+
+	// copy the best known solution into the final solution (freeing what is not needed)
+	// free the other solution
+	free(curr_sol->succ); free(curr_sol->xstar); free(curr_sol->chromo);
+
+	if (sol->optimal) log_line(VERBOSITY, LOGLVL_INFO, "[INFO]: Local optimum was found!");
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Total number of epochs: %d", epoch);
 
 }
 
@@ -716,46 +838,51 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 	empty_solution(curr_sol, sol->format, sol->nnodes);
 	Solution* swap_sol;
 
+	// ************************** BUILD INITIAL CONFIGURATION ************************
+	Solution st_starting_sol;
+	Solution* starting_sol = &st_starting_sol;
+	empty_solution(starting_sol, sol->format, sol->nnodes);
+	// clear solution
+	clear_solution(starting_sol);
+	int a, b;
+	double ab_dist;
+	switch (variant_startingchoice)
+	{
+	case 'h':	// hull
+		build_convex_hull(g, starting_sol);
+		break;
+	case 'r':	// random
+		a = (int)(random() * g->nnodes);
+		b = (int)(random() * g->nnodes);
+		if (a == b) b = (b + 1) % g->nnodes;
+		ab_dist = dist(a, b, g);
+		add_edge_solution(starting_sol, a, b, ab_dist);
+		starting_sol->handle_node = a;
+		break;
+	case 'f':	// furthest
+		furthest_nodes_sol(g, starting_sol);
+		break;
+	default:
+		print_error_ext(ERR_HEUR_CONSTR_PARAM, "variant, got  %c, should be h/r/f", variant_startingchoice);
+		break;
+
+	}
+	// plot solution if needed
+	if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_undirected(g, starting_sol);
+
 	do
 	{
-		// ************************** BUILD INITIAL CONFIGURATION ************************
-		// clear solution
-		clear_solution(curr_sol);
-		int a, b;
-		double ab_dist;
-		switch (variant_startingchoice)
-		{
-		case 'h':	// hull
-			build_convex_hull(g, curr_sol);
-			break;
-		case 'r':	// random
-			a = (int)(random() * g->nnodes);
-			b = (int)(random() * g->nnodes);
-			if (a == b) b = (b + 1) % g->nnodes;
-			ab_dist = dist(a, b, g);
-			add_edge_solution(curr_sol, a, b, ab_dist);
-			curr_sol->handle_node = a;
-			break;
-		case 'f':	// furthest
-			furthest_nodes_sol(g, curr_sol);
-			break;
-		default:
-			print_error_ext(ERR_HEUR_CONSTR_PARAM, "variant, got  %c, should be h/r/f", variant_startingchoice);
-			break;
-
-		}
-		// plot solution if needed
-		if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_undirected(g, curr_sol);
+		// copy starting solution on the current solution
+		deep_copy_solution(curr_sol, starting_sol);
 
 		// ******************************** FILL SOLUTION ********************************
-
 		// for every remaining node, do an extra milage move
 		int i = 0;
 		int log_period = 100;
 		do
 		{
 			i++;
-			if (VERBOSITY >= LOGLVL_DEBUGPLOT_P && i % log_period == 0) plot_tsp_solution_undirected(g, curr_sol);
+			if ((VERBOSITY >= LOGLVL_DEBUGPLOT_PP) && (i % log_period == 0)) plot_tsp_solution_undirected(g, curr_sol);
 
 		} while (extramileage_move(curr_sol, g, &cnstdata->grasp));
 
@@ -779,6 +906,10 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 	{
 		free(curr_sol->succ); free(curr_sol->xstar);
 	}
+
+	// free starting solution
+	free(starting_sol->succ); free(starting_sol->xstar);
+
 }
 
 /* **************************************************************************************************
@@ -1111,16 +1242,27 @@ void refine_localbranching(OptData* optdata, Solution* sol, void* data, double t
 
 }
 
-
+/* **************************************************************************************************
+*					REFINING HEURISTIC: 2-OPT moves
+*			- make 2-OPT moves until a local minima or timelimit is reached
+************************************************************************************************** */
 void refine_2opt(OptData* optdata, Solution* sol, void* data, double timelim)
 {
-	// compute move
-	double delta = move_2opt(sol->succ, &optdata->inst->inst_graph, 0);
-	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Solution cost changed by: %f through a 2-OPT move", delta);
-	// change cost
-	sol->cost += delta;
+	// start time
+	double start_time = second();
+	double delta;
 
-	// if not improving
+	do
+	{
+		// compute move
+		delta = move_2opt(sol->succ, &optdata->inst->inst_graph, 0);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Solution cost changed by: %f through a 2-OPT move", delta);
+		// change cost
+		sol->cost += delta;
+
+	} while (second() - start_time < timelim && delta < 0);
+
+	// if not improved
 	if (delta >= 0)
 	{
 		// mark solution as local optimum

@@ -87,6 +87,7 @@ int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, voi
 	callback_instance* cb_inst = (callback_instance*)userhandle;
 	instance* inst = cb_inst->inst;
 	model* m = &inst->inst_model;
+	graph* g = &inst->inst_graph;
 
 	// get stats on context
 	int cpx_node = -1;
@@ -114,10 +115,32 @@ int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, voi
 		if (CPXcallbackgetcandidatepoint(context, xstar, 0, m->ncols - 1, &objval))
 			print_error(ERR_CPLEX, "CPXcallbackgetcandidatepoint error");
 		// execute rejection procedure
+		char rejected = 0;
 		if (cb_inst->rej_procedure)
-			cb_inst->rej_procedure(context, NULL, inst, cb_inst->args, xstar, CUT_CALLBACK_REJECT, 0, -1);
+			rejected = cb_inst->rej_procedure(context, NULL, inst, cb_inst->args, xstar, CUT_CALLBACK_REJECT, 0, -1);
 		else
 			print_error(ERR_CB_UNDEF_PROCEDURE, "candidate");
+		// if the integer solution is feasable, then crossings should have been eliminated
+		if (!rejected)
+		{
+			int* succ = NULL;	arr_malloc_s(succ, g->nnodes, int);
+			xstar2succ(xstar, succ, g->nnodes);
+			// if there are no subtours, improve the current integer solution
+			// by removing crossings
+			double delta_sum = remove_crossings(succ, g);
+			double new_objval = objval + delta_sum;
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Improved feasable integer solution by %f%%", (objval / new_objval - 1) * 100);
+			// convert back to xstar
+			succ2xstar(succ, xstar, g->nnodes);
+			// add new improved solution to cplex
+			int error;
+			int* ind = NULL;	arr_malloc_s(ind, inst->inst_model.ncols, int);
+			for (int i = 0; i < inst->inst_model.ncols; i++) ind[i] = i;
+			if (error = CPXcallbackpostheursoln(context, inst->inst_model.ncols, ind, xstar, new_objval, CPXCALLBACKSOLUTION_NOCHECK))
+				print_error_ext(ERR_CPLEX, "CPXcallbackpostheursoln error: %d", error);
+			free(succ);
+			free(ind);
+		}
 		// CLEANUP
 		free(xstar);
 		break;
@@ -388,6 +411,94 @@ int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args)
 	}
 
 	return 0;
+}
+/* **************************************************************************************************
+*						2-OPT MOVE: removes a crossing if it exists
+************************************************************************************************** */
+double move_2opt(int* succ, graph* g, char allow_unimproving)
+{
+	// define edges ab and cd as those to replace
+	// define edges ac and bd as those to insert
+	double ab_dist, cd_dist, ac_dist, bd_dist;
+	int a, b, c, d;
+	int a_min = 0, b_min = 0, c_min = 0, d_min = 0;
+	double delta_min = INFINITY;
+	double delta_curr;
+
+	a = 0;
+	// for each node of the tour
+	for (int i = 0; i < g->nnodes; i++)
+	{
+		b = succ[a];
+		ab_dist = dist(a, b, g);
+
+		// c starts after b
+		c = succ[b];
+		// for each remaining edge in the tour
+		// apart from (?, a), (a,b), (b, ?)
+		for (int j = 0; j < g->nnodes - 3; j++)
+		{
+			d = succ[c];
+			cd_dist = dist(c, d, g);
+			ac_dist = dist(a, c, g);
+			bd_dist = dist(b, d, g);
+
+			delta_curr = (ac_dist + bd_dist) - (ab_dist + cd_dist);
+			if (delta_curr < delta_min)
+			{
+				delta_min = delta_curr;
+				a_min = a;
+				b_min = b;
+				c_min = c;
+				d_min = d;
+			}
+			c = d;
+			d = succ[d];
+
+		}
+		// get to the next edge
+		a = b;
+		b = succ[b];
+	}
+
+	// if this is an improving move (delta<0)
+	// or non improving moves are allowed
+	if (delta_min < 0 || allow_unimproving)
+	{
+		// remember next of b_min
+		int new_next = b_min;
+		int new_curr = succ[b_min];
+		int new_prev;
+
+		succ[a_min] = c_min;
+		succ[b_min] = d_min;
+
+		// reverse path from b_min to c_min
+		do
+		{
+			// swap direction
+			new_prev = succ[new_curr];
+			succ[new_curr] = new_next;
+
+			// shift
+			new_next = new_curr;
+			new_curr = new_prev;
+
+		} while (new_next != c_min);
+
+
+		return delta_min;
+	}
+
+	return 0;
+}
+
+double remove_crossings(int* succ, graph* g)
+{
+	double delta_sum = 0;
+	double delta;
+	while ((delta = move_2opt(succ, g, 0)) < 0) delta_sum += delta;
+	return delta_sum;
 }
 
 /* **************************************************************************************************

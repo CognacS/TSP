@@ -18,10 +18,12 @@ typedef struct Heuristic
 	void (*construct_heur) (OptData*, Solution*, void*, double);
 	void* construct_data;
 	solformat construct_sol_format;
+	double construct_timelimit;
 
 	void (*refine_heur) (OptData*, Solution*, void*, double);
 	void* refine_data;
 	solformat refine_sol_format;
+	double refine_timelimit;
 
 	char requires_cplex;
 	char to_timelimit;
@@ -29,11 +31,6 @@ typedef struct Heuristic
 } Heuristic;
 
 // ****************************** BACKBONES DATASTRUCTURES ***************************
-typedef struct
-{
-	double construct_timelimit;
-	double refine_timelimit;
-} IterativeData;
 
 // ************************** CONSTRUCTIVE HEUR DATASTRUCTURES ***********************
 typedef struct
@@ -89,7 +86,7 @@ typedef struct
 void decode_heuristic(OptData* optdata, Heuristic* heur);
 void resolve_solformats(Heuristic* heur);
 char extramileage_move(Solution* sol, graph* g, GraspData* grasp);
-double move_2opt(int* succ, graph * g, char allow_unimproving);
+void kopt_kick(Solution* sol, graph* g, int k);
 
 // ********************************* BACKBONE METHODS ********************************
 void solve_heuristically(OptData* optdata);
@@ -98,6 +95,8 @@ void solve_heuristically(OptData* optdata);
 * the time limit is hit
 */
 void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data);
+void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data);
+
 
 // ***************************** CONSTRUCTIVE HEURISTICS *****************************
 // solution construction procedures which generate a starting point from which to
