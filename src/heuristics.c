@@ -1,6 +1,45 @@
 #include "../include/heuristics.h"
 
 /* **************************************************************************************************
+*						HEURISTIC CODE SECTION
+************************************************************************************************** */
+// structure of whole code:
+//	s1s2s3
+// structure of a single section:
+//	m(p1,p2,p3,...)
+void decompose_heuristic_code(HeuristicCode* decomp, char* heuristic_code)
+{
+	char* section_token = NULL;		char* section_context = NULL;
+	char* param_token = NULL;		char* param_context = NULL;
+	
+	char section_sep[] = ")";
+	char param_sep[] = ",";
+
+	// start sections tokenization
+	section_token = strtok_u(heuristic_code, section_sep, &section_context);
+	// for each section
+	for (int s = 0; (s < HEUR_SECTIONS) && (section_token != NULL); s++)
+	{
+		// extract method
+		decomp->methods[s] = section_token[0];
+
+		// start parameters tokenization
+		param_token = strtok_u(section_token+2, param_sep, &param_context);
+		// for each parameter
+		for (int p = 0; (p < HEUR_NUMPARAM_MAX) && (param_token != NULL); p++)
+		{
+			// extract parameter
+			decomp->params[s][p] = param_token;
+			// next param token
+			param_token = strtok_u(NULL, param_sep, &param_context);
+		}
+
+		// next section token
+		section_token = strtok_u(NULL, section_sep, &section_context);
+	}
+}
+
+/* **************************************************************************************************
 *						SOLUTION USING HEURISTICS (MASTER FUNCTION)
 ************************************************************************************************** */
 void solve_heuristically(OptData* optdata)
@@ -120,176 +159,185 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 	CPXLPptr lp = optdata->cpx->lp;
 	char* code = inst->inst_params.heuristic_code;
 
-	// local parameters
-	char method = 0;
-	char* params;
-	char* token;
-	void* data;
+	// decompose heuristic code
+	HeuristicCode decomp_code;
+	decompose_heuristic_code(&decomp_code, code);
+	HeuristicSection s;
+	char m;
 
+	// setup heuristic
 	heur->requires_cplex = 0;
 	heur->to_timelimit = 1;
 
 	// ******************************* DECODE BACKBONE *******************************
-	method = *code;		// method is first character of code
-	code += 2;
-	params = strtok(code, ")");	// params are comprised in '('...')' and separated by ','
-	code += strlen(params);		// bring code to end of section
+	s = HEUR_BACKBONE;
+	m = decomp_code.methods[s];
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Backbone method: %c", m);
 
-	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Backbone method: %c", method);
-	switch (method)
+	if (m == 'i')			// iterative local search
 	{
-	case 'i':
 		heur->backbone_heur = backbone_iter_local_search;
+
 		// construct time
-		token = strtok(params, ",");
-		heur->construct_timelimit = atof(token);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "construct_time: \"%s\"", token);
+		heur->construct_timelimit = atof(decomp_code.params[s][0]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "construct_time: %f", heur->construct_timelimit);
+
 		// refine time
-		token = strtok(NULL, ",");
-		heur->refine_timelimit = atof(token);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: \"%s\"", token);
+		heur->refine_timelimit = atof(decomp_code.params[s][1]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: %f", heur->refine_timelimit);
+
 		// assign data
 		heur->backbone_data = NULL;
 		heur->backbone_sol_format = SOLFORMAT_XSTAR | SOLFORMAT_SUCC;
 		heur->to_timelimit = 0;
-		break;
-	case 'v':
+	}
+	else if (m == 'v')		// iterative variable neighborhood search
+	{
 		heur->backbone_heur = backbone_var_neighborhood_search;
+
 		// construct time
-		token = strtok(params, ",");
-		heur->construct_timelimit = atof(token);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "construct_time: \"%s\"", token);
+		heur->construct_timelimit = atof(decomp_code.params[s][0]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "construct_time: %f", heur->construct_timelimit);
+
 		// refine time
-		token = strtok(NULL, ",");
-		heur->refine_timelimit = atof(token);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: \"%s\"", token);
+		heur->refine_timelimit = atof(decomp_code.params[s][1]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: %f", heur->refine_timelimit);
+
 		// assign data
 		heur->backbone_data = NULL;
 		heur->backbone_sol_format = SOLFORMAT_SUCC;
 		heur->to_timelimit = 1;
-		break;
-	default:
-		print_error_ext(ERR_HEUR_DECODE, "unknown backbone method: %c", method);
+	}
+	else
+	{
+		print_error_ext(ERR_HEUR_DECODE, "unknown backbone method: %c", m);
 	}
 
-	code++;
 	// ******************************* DECODE CONSTRUCT ******************************
-	method = *code;		// method is first character of code
-	code += 2;
-	params = strtok(code, ")");	// params are comprised in '('...')' and separated by ','
-	code += strlen(params);		// bring code to end of section
+	s = HEUR_CONSTRUCT;
+	m = decomp_code.methods[s];
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Construct method: %c", m);
 
-	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Construct method: %c", method);
-	switch (method)
+	if (m == 's')			// construct through cplex solver
 	{
-	case 's':	// construct through solver
 		heur->construct_heur = construct_tspsolver;
-		heur->requires_cplex = 1;
+
+		// assign data
 		heur->construct_data = NULL;
+		heur->requires_cplex = 1;
 		heur->construct_sol_format = SOLFORMAT_XSTAR;
-		break;
-	case 'g':	// construct through greedy algorithm
+	}
+	else if (m == 'g')		// construct through greedy algorithm
+	{
 		heur->construct_heur = construct_greedy;
-		malloc_s(data, GreedyAlgoData);
+		GreedyAlgoData* data = NULL;  malloc_s(data, GreedyAlgoData);
+
 		// deviation probability
-		token = strtok(params, ",");
-		((GreedyAlgoData*)data)->grasp.p_dev = atof(token);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "p_dev: \"%s\"", token);
+		data->grasp.p_dev = atof(decomp_code.params[s][0]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "p_dev: %f", data->grasp.p_dev);
+
 		// candidate pool size
-		token = strtok(NULL, ",");
-		((GreedyAlgoData*)data)->grasp.candpool_size = atoi(token);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "candpool_size: \"%s\"", token);
+		data->grasp.candpool_size = atoi(decomp_code.params[s][1]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "candpool_size: %d", data->grasp.candpool_size);
+
 		// assign data
 		heur->construct_data = data;
 		heur->construct_sol_format = SOLFORMAT_XSTAR | SOLFORMAT_SUCC;
-		break;
-	case 'e':	// construct through extra mileage algorithm
+	}
+
+	else if (m == 'e')		// construct through extra mileage algorithm
+	{
 		heur->construct_heur = construct_extramileage;
-		malloc_s(data, ExtraMileageData);
+		ExtraMileageData* data = NULL;	malloc_s(data, ExtraMileageData);
+
 		// deviation probability
-		token = strtok(params, ",");
-		((ExtraMileageData*)data)->grasp.p_dev = atof(token);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "p_dev: \"%s\"", token);
+		data->grasp.p_dev = atof(decomp_code.params[s][0]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "p_dev: %f", data->grasp.p_dev);
+
 		// candidate pool size
-		token = strtok(NULL, ",");
-		((ExtraMileageData*)data)->grasp.candpool_size = atoi(token);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "candpool_size: \"%s\"", token);
+		data->grasp.candpool_size = atoi(decomp_code.params[s][1]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "candpool_size: %d", data->grasp.candpool_size);
+
 		// variant for starting edges choice
-		token = strtok(NULL, ",");
-		((ExtraMileageData*)data)->variant_startingchoice = *token;
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "variant_startingchoice: \"%s\"", token);
+		data->variant_startingchoice = *decomp_code.params[s][2];
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "variant_startingchoice: %c", data->variant_startingchoice);
+
 		// assign data
 		heur->construct_data = data;
 		heur->construct_sol_format = SOLFORMAT_SUCC;
-		break;
-	default:
-		print_error_ext(ERR_HEUR_DECODE, "unknown constructive heuristic: %c", *code);
 	}
-	code++;
-	// ******************************** DECODE REFINE ********************************
-	method = *code;		// method is first character of code
-	code += 2;
-	params = strtok(code, ")");	// params are comprised in '(...')' and separated by ','
-	code += strlen(params);		// bring code to end of section
-
-	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Refine method: %c", method);
-	switch (method)
+	else
 	{
-	case 'h':	// refine through hardfixing scheme
+		print_error_ext(ERR_HEUR_DECODE, "unknown constructive heuristic: %c", m);
+	}
+
+	// ******************************** DECODE REFINE ********************************
+	s = HEUR_REFINE;
+	m = decomp_code.methods[s];
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Refine method: %c", m);
+
+	if (m == 'h')			// refine through hardfixing scheme
+	{
 		heur->refine_heur = refine_hardfixing;
-		heur->requires_cplex = 1;
-		malloc_s(data, HardfixingData);
+		HardfixingData* data = NULL;	malloc_s(data, HardfixingData);
+
 		// variant
-		token = strtok(params, ",");
-		((HardfixingData*)data)->variant = *token;
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "variant: \"%s\"", token);
+		data->variant = *decomp_code.params[s][0];
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "variant: %c", data->variant);
+
 		// max_rounds
-		token = strtok(NULL, ",");
-		((HardfixingData*)data)->max_rounds = atoi(token);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "max_rounds: \"%s\"", token);
+		data->max_rounds = atoi(decomp_code.params[s][1]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "max_rounds: %d", data->max_rounds);
+
 		// values
 		for (int i = 0; i < HEUR_HARDFIX_VALUES; i++)
 		{
-			token = strtok(NULL, ",");
-			((HardfixingData*)data)->values[i] = atof(token);
-			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "values[%d]: \"%s\"", i, token);
+			data->values[i] = atof(decomp_code.params[s][2+i]);
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "values[%d]: %f", i, data->values[i]);
 		}
+
 		// assign data
-		((HardfixingData*)data)->rounds_nonimprove = 0;
-		((HardfixingData*)data)->progress = 0;
+		data->rounds_nonimprove = 0;
+		data->progress = 0;
 		heur->refine_data = data;
-		heur->refine_sol_format = SOLFORMAT_XSTAR;
-		break;
-	case 'l':	// refine through local branching scheme
-		heur->refine_heur = refine_localbranching;
 		heur->requires_cplex = 1;
-		malloc_s(data, LocalbranchingData);
+		heur->refine_sol_format = SOLFORMAT_XSTAR;
+	}
+	else if (m == 'l')		// refine through local branching scheme
+	{
+		heur->refine_heur = refine_localbranching;
+		LocalbranchingData* data = NULL;	malloc_s(data, LocalbranchingData);
+
 		// max_rounds
-		token = strtok(params, ",");
-		((LocalbranchingData*)data)->max_rounds = atoi(token);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "max_rounds: \"%s\"", token);
+		data->max_rounds = atoi(decomp_code.params[s][0]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "max_rounds: %d", data->max_rounds);
+
 		// values
 		for (int i = 0; i < HEUR_LOCALBRANCH_VALUES; i++)
 		{
-			token = strtok(NULL, ",");
-			((LocalbranchingData*)data)->values[i] = atoi(token);
-			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "values[%d]: \"%s\"", i, token);
+			data->values[i] = atoi(decomp_code.params[s][1 + i]);
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "values[%d]: %d", i, data->values[i]);
 		}
+
 		// assign data
-		((LocalbranchingData*)data)->rounds_nonimprove = 0;
-		((LocalbranchingData*)data)->progress = 0;
+		data->rounds_nonimprove = 0;
+		data->progress = 0;
 		heur->refine_data = data;
+		heur->requires_cplex = 1;
 		heur->refine_sol_format = SOLFORMAT_XSTAR;
-		break;
-	case '2':	// refine through 2-OPT moves
+	}
+	else if (m == '2')		// refine through 2-OPT moves
+	{
 		heur->refine_heur = refine_2opt;
+
+		// assign data
 		heur->refine_data = NULL;
 		heur->refine_sol_format = SOLFORMAT_SUCC;
-		break;
-	default:
-		print_error_ext(ERR_HEUR_DECODE, "unknown refining heuristic: %c", *code);
 	}
-
+	else
+	{
+		print_error_ext(ERR_HEUR_DECODE, "unknown refining heuristic: %c", m);
+	}
 }
 
 /* **************************************************************************************************
@@ -550,10 +598,11 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 }
 
 /* **************************************************************************************************
-*					BACKBONE METHOD: ITERATIVE LOCAL SEARCH
+*					BACKBONE METHOD: VARIABLE NEIGHBORHOOD SEARCH
 *			- construct a starting solution
-*			- refine iteratively the solution until time expires (or if needed until
-*				a local optimum is found)
+*			- refine iteratively the solution
+*			- if the refined solution gets stuck in a local minima, shake it in a bigger
+*				neighborhood than what is reachable by the refinement procedure
 ************************************************************************************************** */
 void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data)
 {
@@ -605,7 +654,7 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 	{
 		// ***************************** REFINE SOLUTION *****************************
 		log_line_ext(VERBOSITY, LOGLVL_MSG, "************ STARTING EPOCH %d ************", epoch++);
-		printf("CORRECTNESS BEFORE 2-OPT MOVE: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS BEFORE 2-OPT MOVE: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
 		// // convert solution to the refinement format
 		if (!convert_solution(curr_sol, heur->refine_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
 		// compute timelimit for refinement heuristic
@@ -621,7 +670,7 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 		time_passed += time_phase;
 
 		// log
-		printf("CORRECTNESS BEFORE K-OPT KICK: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS BEFORE K-OPT KICK: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
 		if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_directed(&inst->inst_graph, curr_sol);
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] 1 iteration of refinement done in %f sec.s", time_phase);
 
@@ -648,7 +697,7 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 			// kick the solution in its k-opt neighborhood
 			kopt_kick(curr_sol, &inst->inst_graph, kick_k);
 			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Kicked solution in its %d-OPT neighborhood", kick_k);
-			printf("CORRECTNESS AFTER K-OPT KICK: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS AFTER K-OPT KICK: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
 			if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_directed(&inst->inst_graph, curr_sol);
 			// increase k
 			kick_k = min(kick_k+1, curr_sol->nnodes);

@@ -5,6 +5,26 @@
 #include "cpx_models.h"
 #include "chrono.h"
 
+// *********************************** HEURISTIC CODE ********************************
+#define HEUR_SECTIONS 3
+#define HEUR_NUMPARAM_MAX 10
+
+typedef enum
+{
+	HEUR_BACKBONE	= 0,
+	HEUR_CONSTRUCT	= 1,
+	HEUR_REFINE		= 2
+} HeuristicSection;
+
+typedef struct
+{
+	char methods[HEUR_SECTIONS];					// heuristic method chars for each section
+	char* params[HEUR_SECTIONS][HEUR_NUMPARAM_MAX];	// method-specific parameters for each section
+
+} HeuristicCode;
+
+void decompose_heuristic_code(HeuristicCode* decomp, char* heuristic_code);
+
 // ****************************** HEURISTIC DATASTRUCTURE ****************************
 // prefer succ format
 #define HEUR_PREFERRED_FORMAT SOLFORMAT_SUCC
