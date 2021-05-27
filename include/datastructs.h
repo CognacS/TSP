@@ -35,6 +35,10 @@ void LL_free(LinkedList* list);
 *********************************************************************************** */
 
 // ************* set of nodes *************
+/*
+* Set structure with the property:
+*	nodes[indices[node]] = node
+*/
 typedef struct
 {
 	int* nodes;
@@ -53,8 +57,9 @@ inline char SETN_isempty(SetOfNodes* set) { return set->curr_size == 0; }
 inline int SETN_get(SetOfNodes* set, int idx) { return set->nodes[idx]; }	// O(1)
 char SETN_add(SetOfNodes* set, int node);									// O(1)
 char SETN_remove(SetOfNodes* set, int node);								// O(1)
+char SETN_reposition(SetOfNodes* set, int node, int repos_idx);				// O(1)
 void SETN_free(SetOfNodes* set);
-void SETN_deepcopy(SetOfNodes* dst, SetOfNodes* src);
+void SETN_deepcopy(SetOfNodes* dst, SetOfNodes* src);						// O(n)
 	
 
 /* ***********************************************************************************

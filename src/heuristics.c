@@ -108,7 +108,7 @@ void solve_heuristically(OptData* optdata)
 	}
 
 	// resolve solution format problems (xstar, succ)
-	resolve_SolFormats(&heur);
+	resolve_solformats(&heur);
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Solution formats: bb=%x ct=%x rf=%x",
 		heur.backbone_sol_format, heur.construct_sol_format, heur.refine_sol_format);
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Possible formats are: \n"
@@ -194,6 +194,7 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 	else if (m == 'v')		// iterative variable neighborhood search
 	{
 		heur->backbone_heur = backbone_var_neighborhood_search;
+		VNSData* data = NULL;	malloc_s(data, VNSData);
 
 		// construct time
 		heur->construct_timelimit = atof(decomp_code.params[s][0]);
@@ -203,8 +204,12 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 		heur->refine_timelimit = atof(decomp_code.params[s][1]);
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: %f", heur->refine_timelimit);
 
+		// max_k
+		data->max_k = atoi(decomp_code.params[s][2]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "max_k: %d", data->max_k);
+
 		// assign data
-		heur->backbone_data = NULL;
+		heur->backbone_data = data;
 		heur->backbone_sol_format = SOLFORMAT_SUCC;
 		heur->to_timelimit = 1;
 	}
@@ -343,7 +348,7 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 /* **************************************************************************************************
 *					RESOLVE CONVERSIONS INSIDE THE BACKBONE HEURISTIC METHOD
 ************************************************************************************************** */
-void resolve_SolFormats(Heuristic* heur)
+void resolve_solformats(Heuristic* heur)
 {
 	// emphasis on common format between backbone and refinement
 	SolFormat bb_rf_common_format =
@@ -472,40 +477,37 @@ void kopt_kick(Solution* sol, Graph* g, int k)
 	int nnodes = g->nnodes;
 
 	// choose k edges to be removed
-	int* chosen_nodes = NULL;	arr_malloc_s(chosen_nodes, k, int);
+	SetOfNodes* chosen_nodes = SETN_new(k, nnodes);
 	int* succ_nodes = NULL;		arr_malloc_s(succ_nodes, k, int);
-	int* chosen_pos = NULL;			calloc_s(chosen_pos, nnodes, int);
 	int node;
 
 	for (int i = 0; i < k; i++)
 	{
-		// check that the new generated node is different from all others
+		// continue generating random nodes until it can be added
 		do
 		{
 			node = (int)(random() * nnodes);
-		} while (chosen_pos[node]);
+		} while (!SETN_add(chosen_nodes, node));
 
-		// if it was not chosen, choose it
-		chosen_nodes[i] = node;
-		chosen_pos[node] = i+1;
+		log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "[PEDANTIC] Chosen edge %d->%d to change", node, sol->succ[node]);
+		
 	}
 
 	// reorder chosen nodes in tour order of appearance
 	int curr = 0;
 	int nodes_found = 0;
-	int swap_node;
 	for (int i = 0; i < nnodes; i++)
 	{
 		// if curr node was chosen, then swap it with the first in line
-		if (chosen_pos[curr])
+		if (SETN_exists(chosen_nodes, curr))
 		{
-			swap_node = chosen_nodes[nodes_found];
-			chosen_nodes[nodes_found] = curr;
-			chosen_nodes[chosen_pos[curr]-1] = swap_node;
-			chosen_pos[swap_node] = chosen_pos[curr];
+			// reposition node on top
+			SETN_reposition(chosen_nodes, curr, nodes_found);
 			// also set succ
 			succ_nodes[nodes_found] = sol->succ[curr];
 			nodes_found++;
+
+			log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "[PEDANTIC] Found edge %d->%d on the way", curr, sol->succ[curr]);
 		}
 
 		curr = sol->succ[curr];
@@ -515,7 +517,11 @@ void kopt_kick(Solution* sol, Graph* g, int k)
 	double cost_add = 0;
 	for (int i = 0; i < k; i++)
 	{
-		node = chosen_nodes[i];
+		node = SETN_get(chosen_nodes, i);
+
+		log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "[PEDANTIC] changing %d->%d with %d->%d",
+			node, sol->succ[node], node, succ_nodes[(k + i - 2) % k]);
+
 		cost_add -= dist(g, node, sol->succ[node]);
 		sol->succ[node] = succ_nodes[(k + i - 2) % k];
 		cost_add += dist(g, node, sol->succ[node]);
@@ -524,7 +530,8 @@ void kopt_kick(Solution* sol, Graph* g, int k)
 	// change overall cost of solution
 	sol->cost += cost_add;
 
-	free(chosen_nodes); free(succ_nodes); free(chosen_pos);
+	free(succ_nodes);
+	SETN_free(chosen_nodes);
 }
 
 /* **************************************************************************************************
@@ -610,6 +617,7 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 	// ******************************** SETUP ********************************
 	// unpack
 	Instance* inst = optdata->inst;
+	VNSData* bbdata = (VNSData*)data;
 
 	// startup solution and format it for construction
 	create_solution(sol, heur->construct_sol_format, inst->inst_graph.nnodes);
@@ -697,11 +705,12 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 		{
 			// kick the solution in its k-opt neighborhood
 			kopt_kick(curr_sol, &inst->inst_graph, kick_k);
+
 			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Kicked solution in its %d-OPT neighborhood", kick_k);
 			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS AFTER K-OPT KICK: %d", check_succ(curr_sol->succ, curr_sol->nnodes));
 			if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_undirected(&inst->inst_graph, curr_sol);
 			// increase k
-			kick_k = min(kick_k+1, curr_sol->nnodes);
+			kick_k = min(kick_k+1, bbdata->max_k);
 		}
 	}
 

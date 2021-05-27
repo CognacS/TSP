@@ -51,6 +51,10 @@ typedef struct Heuristic
 } Heuristic;
 
 // ****************************** BACKBONES DATASTRUCTURES ***************************
+typedef struct
+{
+	int max_k;
+} VNSData;
 
 // ************************** CONSTRUCTIVE HEUR DATASTRUCTURES ***********************
 typedef struct
@@ -104,7 +108,7 @@ typedef struct
 
 // ******************************** AUXILIARY FUNCTIONS ******************************
 void decode_heuristic(OptData* optdata, Heuristic* heur);
-void resolve_SolFormats(Heuristic* heur);
+void resolve_solformats(Heuristic* heur);
 char extramileage_move(Solution* sol, Graph* g, SetOfNodes* ext_nodes, GraspData* grasp);
 void kopt_kick(Solution* sol, Graph* g, int k);
 

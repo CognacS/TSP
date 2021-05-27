@@ -76,7 +76,8 @@ SetOfNodes* SETN_new_allnodes(int nnodes)
 
 char SETN_add(SetOfNodes* set, int node)
 {
-	if (SETN_isfull(set)) return 0;
+	// if set is full or node already in set, return false
+	if (SETN_isfull(set) || SETN_exists(set, node)) return 0;
 
 	// else add node at end
 	set->nodes[set->curr_size] = node;
@@ -96,6 +97,25 @@ char SETN_remove(SetOfNodes* set, int node)
 		// set last node index as the previous removed node index
 		set->indices[last_node] = node_idx;
 		set->curr_size--;
+		return 1;
+	}
+	return 0;
+}
+
+char SETN_reposition(SetOfNodes* set, int node, int repos_idx)
+{
+	if (SETN_exists(set, node))
+	{
+		// place node
+		int repos_node = set->nodes[repos_idx];
+		set->nodes[repos_idx] = node;
+		// change node index
+		int node_idx = set->indices[node];
+		set->indices[node] = repos_idx;
+		// swap previous node
+		set->nodes[node_idx] = repos_node;
+		set->indices[repos_node] = node_idx;
+
 		return 1;
 	}
 	return 0;

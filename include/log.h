@@ -19,7 +19,7 @@
 #define LOGLVL_PEDANTIC		90
 #define LOGLVL_CPLEXLOG		100
 
-#define VERBOSITY			70		// printing level  (=10 only incumbent, =20 little output, =50-60 good, =70 verbose, >=100 cplex log)
+#define VERBOSITY			50		// printing level  (=10 only incumbent, =20 little output, =50-60 good, =70 verbose, >=100 cplex log)
 
 void log_line(int runlvl, int loglvl, char* line);
 void log_multilines(int runlvl, int loglvl, int nlines, char** lines);
