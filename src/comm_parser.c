@@ -1,14 +1,14 @@
 #include "../comm_parser.h"
 
 
-void parse_command_line(int argc, char** argv, instance* inst)
+void parse_command_line(int argc, char** argv, Instance* inst)
 {
 	// print command when debugging
 	log_line_ext(VERBOSITY, LOGLVL_INFO, "Running command parser with %d parameters", argc);
 
 	// define the parameters for the instance
-	graph* g = &inst->inst_graph;
-	params* p = &inst->inst_params;
+	Graph* g = &inst->inst_graph;
+	Params* p = &inst->inst_params;
     
 	int help = 0; if (argc < 1) help = 1;
 	strings_iterator* iter = build_cmdline_iter(argc, argv);

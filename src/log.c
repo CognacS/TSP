@@ -3,8 +3,7 @@
 void log_line(int runlvl, int loglvl, char* line)
 {
 	// if the running log level is bigger than this log level then print the line
-	if (runlvl >= loglvl)
-		printf("%s\n", line);
+	log_line_ext(runlvl, loglvl, "%s", line);
 
 }
 void log_multilines(int runlvl, int loglvl, int nlines, char** lines)

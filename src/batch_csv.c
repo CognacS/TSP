@@ -1,14 +1,14 @@
 #include "../batch_csv.h"
 
-void reorder_grid_csv(csv_batchtool* bt)
+void reorder_grid_csv(CsvBatchTool* bt)
 {
-	grid* p_grid = &bt->bt.p_grid;
-	csvaxis order[] = { CSV_CELL, CSV_COLS, CSV_ROWS };
-	csvaxis curr_axis;
+	Grid* p_grid = &bt->bt.p_grid;
+	CsvAxis order[] = { CSV_CELL, CSV_COLS, CSV_ROWS };
+	CsvAxis curr_axis;
 	int axis_num = 3;
 
-	gridparam aux_param;
-	gridparam* param_list = p_grid->grid_params;
+	GridParam aux_param;
+	GridParam* param_list = p_grid->grid_params;
 	int params_num = p_grid->params_num;
 	
 	// elements are correct up to this index
@@ -42,7 +42,7 @@ void reorder_grid_csv(csv_batchtool* bt)
 	bt->reordered = 1;
 }
 
-void open_file_csv(csv_batchtool* bt)
+void open_file_csv(CsvBatchTool* bt)
 {
 	// if the grid was not reordered, throw error
 	if (!bt->reordered) print_error(ERR_CSV_NOT_REORDERED, NULL);
@@ -53,7 +53,7 @@ void open_file_csv(csv_batchtool* bt)
 	if (bt->csv_fp == NULL) print_error(ERR_CSV_CANNOT_OPEN, bt->csv_file);
 
 	// ********* print first line *********
-	grid* p_grid = &bt->bt.p_grid;
+	Grid* p_grid = &bt->bt.p_grid;
 	// iterate through all cols
 	int cols_start;
 	int cols_end;
@@ -116,14 +116,14 @@ void open_file_csv(csv_batchtool* bt)
 	free(indices);
 }
 
-void close_file_csv(csv_batchtool* bt)
+void close_file_csv(CsvBatchTool* bt)
 {
 	fclose(bt->csv_fp);
 }
 
-void register_measure_csv(csv_batchtool* bt, double measure)
+void register_measure_csv(CsvBatchTool* bt, double measure)
 {
-	grid* p_grid = &bt->bt.p_grid;
+	Grid* p_grid = &bt->bt.p_grid;
 	// define cumulative time and number
 	static double accum_measure;
 	static int	  samples_num;
@@ -135,7 +135,7 @@ void register_measure_csv(csv_batchtool* bt, double measure)
 	int last_incridx = p_grid->last_incridx;
 
 	// get type of axis to update
-	csvaxis axis_update = p_grid->grid_params[last_incridx].axis;
+	CsvAxis axis_update = p_grid->grid_params[last_incridx].axis;
 
 	// if update is out of cell, print the value of the cell
 	if (axis_update != CSV_CELL && samples_num > 0)
@@ -153,9 +153,9 @@ void register_measure_csv(csv_batchtool* bt, double measure)
 
 }
 
-void newline_csv(csv_batchtool* bt)
+void newline_csv(CsvBatchTool* bt)
 {
-	grid* p_grid = &bt->bt.p_grid;
+	Grid* p_grid = &bt->bt.p_grid;
 
 	fprintf(bt->csv_fp, "\n");
 

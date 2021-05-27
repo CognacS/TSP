@@ -1,106 +1,155 @@
 #include "../include/tsp.h"
 
-
 /* ***************************************************************************************************
-*						TSP OPTIMIZATION PROCEDURE
+*						DATASTRUCTURES PRINT FUNCTIONS
 *************************************************************************************************** */
-// optimization functions
-int TSPopt(instance* inst)
+
+void print_params(Params* inst_p)
 {
-	double starting_time = second();
+	printf("Parameters:\n"
+		"\tmodel_type = %d\n"
+		"\ttimelimit  = %f\n"
+		"\tinput_file = %s\n"
+		"\tbatch_file = %s\n"
+		"\trandomseed = %d\n"
+		"\tcutoff = %f\n"
+		"\tmax_nodes = %d\n",
+		inst_p->model_type,
+		inst_p->timelimit,
+		inst_p->input_file,
+		inst_p->batch_file,
+		inst_p->randomseed,
+		inst_p->cutoff,
+		inst_p->max_nodes
+	);
+}
 
-	// *************************** SETUP ***************************
-	// initialize optimization procedure wrapping of data
-	OptData optdata;
-	optdata.inst = inst;
-	optdata.cpx = NULL;
 
-	// configure environment parameters
-	params* p = &(inst->inst_params);
-	graph* g = &(inst->inst_graph);
-	model* m = &(inst->inst_model);
-	global_data* gd = &inst->inst_global_data;
+void print_global_data(GlobalData* inst_global)
+{
+	printf("Global Data:\n"
+		"\ttstart = %f\n"
+		"\ttexec = %f\n"
+		"\tzbest= %f\n"
+		"\tlbbest = %f\n",
+		inst_global->tstart,
+		inst_global->texec,
+		inst_global->zbest,
+		inst_global->lbbest
+	);
+}
+void print_model(Model* inst_model)
+{
+	printf("Model:\n"
+		"\tncols = %d\n",
+		inst_model->ncols
+	);
+}
 
-	// configure starting parameters
-	gd->tstart = starting_time;
-	gd->texec = 0;
-	gd->perf_measure = 0;
+void print_instance(Instance* inst)
+{
+	printf("********** INSTANCE REPORT **********\n");
 
-	// apply transformation to coordinates if required
-	coord_transform(g);
+	print_graph(&inst->inst_graph);
+	print_params(&inst->inst_params);
+	print_global_data(&inst->inst_global_data);
+	print_model(&inst->inst_model);
 
-	// setup random seed
-	srand(DEFAULT_SEED);
-
-	// setup cplex support
-	if (model_tsptype(p->model_type) == MODEL_TSP_ASYMM ||
-		model_tsptype(p->model_type) == MODEL_TSP_SYMM)
-	{
-		mip_setup_cplex(&optdata);
-	}
-
-	// ************************ OPTIMIZATION ************************
-	switch (model_tsptype(p->model_type))
-	{
-	case MODEL_TSP_ASYMM:
-		solve_asymmetric_tsp(&optdata);
-		break;
-	case MODEL_TSP_SYMM:
-		solve_symmetric_tsp(&optdata);
-		break;
-	case MODEL_HEURISTICS:
-		solve_heuristically(&optdata);
-		break;
-	default:
-		print_error(ERR_MODEL_NOT_IMPL, "TSP variant");
-	}
-
-	// print LP model if required
-	if (using_cplex(&optdata) && VERBOSITY >= LOGLVL_DEBUG)
-		CPXwriteprob(optdata.cpx->env, optdata.cpx->lp, "model.lp", NULL);
-
-	// get run execution time
-	gd->texec = second() - gd->tstart;
-
-	// ************************* CHECK RUN AND FINALIZE *************************
-	// setup code to return after optimization procedure
-	opt_result output_code = OPT_OK;
-	switch (model_tsptype(p->model_type))
-	{
-	case MODEL_TSP_ASYMM:
-	case MODEL_TSP_SYMM:
-		output_code = OPT_OK;
-		// IF TIMELIMIT EXPIRED
-		if (time_limit_expired(inst))
-		{
-			output_code = OPT_TL_EXPIRED;
-			gd->perf_measure *= OPT_TL_PENALIZATION_MULT;
-			break;
-		}
-		// IF ALL WENT WELL
-		// set performance measure as execution time
-		gd->perf_measure = gd->texec;
-		// extract solution
-		if (gd->xstar != NULL) free_s(gd->xstar);
-		arr_malloc_s(gd->xstar, m->ncols, double);
-		mip_extract_sol_obj_lb(&optdata, "Finalized");
-		break;
-	case MODEL_HEURISTICS:
-		output_code = OPT_HEUR_OK;
-		// set performance measure as 
-		gd->perf_measure = gd->texec;
-		// no need to extract solution -> it is already provided by the heuristic
-		break;
-	}
-	// ************************ CLEAN-UP ************************
-	// free and close cplex model 
-	if (optdata.cpx != NULL)
-	{
-		mip_close_cplex(&optdata);
-	}
-	
-	return output_code; // or an appropriate nonzero error code
+	printf("*************************************\n");
 
 }
 
 
+void fill_inst_default(Instance* inst)
+{
+	// define the parameters for the instance
+	Graph* g = &inst->inst_graph;
+	Params* p = &inst->inst_params;
+	GlobalData* gd = &inst->inst_global_data;
+	Model* m = &inst->inst_model;
+
+	// ************ DEFAULT PARAMETERS DEFINITION ************
+	default_graph(g);
+
+	p->model_type = DEF_MODEL_TYPE;
+	strcpy(p->input_file, DEF_INPUT_FILE);
+	strcpy(p->batch_file, DEF_BATCH_FILE);
+	p->timelimit = DEF_TIMELIMIT;
+	p->randomseed = DEF_RANDOMSEED;
+	p->max_nodes = DEF_MAX_NODES;
+
+	gd->xstar = NULL;
+
+	m->ncols = DEF_NCOLS;
+	// *******************************************************
+
+}
+
+/* ***************************************************************************************************
+*						DATASTRUCTURES DESTROYERS
+*************************************************************************************************** */
+
+void free_global_data(GlobalData* inst_global)
+{
+	free_s(inst_global->xstar);
+}
+
+void free_instance(Instance* inst)
+{
+	free_graph(&inst->inst_graph);
+	free_global_data(&inst->inst_global_data);
+}
+
+/* ***************************************************************************************************
+*						DATASTRUCTURES LOGGING
+*************************************************************************************************** */
+
+void log_datastruct(void* object, DataType type, int runlvl, int loglvl)
+{
+	if (runlvl >= loglvl)
+	{
+		switch (type)
+		{
+		case TYPE_GRAPH:
+			print_graph((Graph*)object);
+			break;
+		case TYPE_PARAM:
+			print_params((Params*)object);
+			break;
+		case TYPE_GLOB:
+			print_global_data((GlobalData*)object);
+			break;
+		case TYPE_MODEL:
+			print_model((Model*)object);
+			break;
+		case TYPE_INST:
+			print_instance((Instance*)object);
+			break;
+		default:
+			print_warn(WARN_WRONG_DATASTRUCT, NULL);
+		}
+	}
+}
+
+/* ***************************************************************************************************
+*						TME HANDLING
+*************************************************************************************************** */
+
+double residual_time(Instance* inst)
+{
+	return inst->inst_global_data.tstart + inst->inst_params.timelimit - second();
+}
+
+int time_limit_expired(Instance* inst)
+{
+	GlobalData* gd = &inst->inst_global_data;
+	Params* p = &inst->inst_params;
+
+	double tspan = second() - gd->tstart;
+	if (tspan > p->timelimit)
+	{
+		print_warn_ext(WARN_EXPIRED_TIMELIMIT, "limit of %10.1lf sec.s expired after %10.1lf sec.s", p->timelimit, tspan);
+		return 1;
+	}
+	return 0;
+}

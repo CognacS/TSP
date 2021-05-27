@@ -81,12 +81,12 @@ int parsestr(char* in_str, char* format)
 	// while there are new strings to parse
 	while (token != NULL)
 	{
-		// if it matches, return true
+		// if it matches, return 1
 		if (!strcmp(in_str, token))
 			return 1;
 
 		token = strtok(NULL, "|");
 	}
-	// if in_str did not match with anything return false
+	// if in_str did not match with anything return 0
 	return 0;
 }

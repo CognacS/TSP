@@ -2,10 +2,7 @@
 
 #define FILE_PARSER_H_
 
-#include "tsp_data.h"
-#include "tsp_utility.h"
-#include "log.h"
-#include "error.h"
+#include "tsp.h"
 #include "parser.h"
 #include "batch_tool.h"
 
@@ -38,8 +35,8 @@ int next_value_tsplike(void* ds, char* out_buffer, int section);
 // constructor
 strings_iterator* build_tsplike_iter(FILE* fin);
 
-void random_instance(graph* g, char* line);
-void read_input(instance* inst);
-void read_batchfile(batchtool* bt);
+void random_instance(Graph* g, char* line);
+void read_input(Instance* inst);
+void read_batchfile(BatchTool* bt);
 
 #endif

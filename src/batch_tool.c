@@ -1,12 +1,12 @@
 #include "../batch_tool.h"
 
-int next_args_config(grid* p_grid, char** new_argv)
+int next_args_config(Grid* p_grid, char** new_argv)
 {
 	if (p_grid->end_reached) return 0;
 
 	// ********************** WRITE VALUES ********************** 
 	int curr_index;
-	gridparam* curr_param;
+	GridParam* curr_param;
 	// for each parameter in the grid
 	for (int i = 0; i < p_grid->params_num; i++)
 	{
@@ -37,7 +37,7 @@ int next_args_config(grid* p_grid, char** new_argv)
 	return 1;
 }
 
-int next_inst_config(grid* p_grid, instance* inst)
+int next_inst_config(Grid* p_grid, Instance* inst)
 {
 	// allocate new arg arrays
 	int new_argc = p_grid->params_num * 2;
@@ -54,7 +54,7 @@ int next_inst_config(grid* p_grid, instance* inst)
 	return hasnext;
 }
 
-void restart_grid(grid* p_grid)
+void restart_grid(Grid* p_grid)
 {
 	p_grid->end_reached = 0;
 	p_grid->started = 0;
@@ -64,7 +64,7 @@ void restart_grid(grid* p_grid)
 	}
 }
 
-void print_grid(grid* p_grid)
+void print_grid(Grid* p_grid)
 {
 	// allocate new arg arrays
 	int new_argc = p_grid->params_num * 2;
@@ -86,7 +86,7 @@ void print_grid(grid* p_grid)
 
 }
 
-void print_batchtool(batchtool* bt)
+void print_BatchTool(BatchTool* bt)
 {
 	printf("BATCH TOOL\n");
 	printf("\t - input file: %s\n", bt->input_file);
@@ -94,7 +94,7 @@ void print_batchtool(batchtool* bt)
 }
 
 
-void free_gridparam(gridparam* params)
+void free_GridParam(GridParam* params)
 {
 	for (int i = 0; i < params->values_num; i++)
 	{
@@ -104,16 +104,16 @@ void free_gridparam(gridparam* params)
 	free(params->values);
 	free(params->labels);
 }
-void free_grid(grid* p_grid)
+void free_grid(Grid* p_grid)
 {
 	for (int i = 0; i < p_grid->params_num; i++)
 	{
-		free_gridparam(&p_grid->grid_params[i]);
+		free_GridParam(&p_grid->grid_params[i]);
 	}
 	free(p_grid->grid_params);
 	free(p_grid->indices);
 }
-void free_batchtool(batchtool* bt)
+void free_BatchTool(BatchTool* bt)
 {
 	free_grid(&bt->p_grid);
 }

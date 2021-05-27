@@ -1,6 +1,6 @@
 #include "../include/file_parser.h"
 
-void random_instance(graph* g, char* line)
+void random_instance(Graph* g, char* line)
 {
 
 	// copy the line
@@ -32,15 +32,15 @@ void random_instance(graph* g, char* line)
 
 }
 
-void read_input(instance* inst)
+void read_input(Instance* inst)
 {
 	// get the instance graph
-	graph* g = &inst->inst_graph;
+	Graph* g = &inst->inst_graph;
 	g->nnodes = -1;
 	g->tr_xcoord = NULL;
 	g->tr_ycoord = NULL;
 	// get the instance params
-	params* p = &inst->inst_params;
+	Params* p = &inst->inst_params;
 
 	// if the input instance is a random instance,
 	if (inst->inst_params.input_file[0] == 'R' &&
@@ -114,7 +114,7 @@ void read_input(instance* inst)
 				if (i < 0 || i >= g->nnodes) print_error(ERR_INPUT_UNKNOWN_NODE, NULL);
 				g->xcoord[i] = atof(coords_str[0]);
 				g->ycoord[i] = atof(coords_str[1]);
-				log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] node %4d at coordinates ( %15.7lf , %15.7lf )", i + 1, g->xcoord[i], g->ycoord[i]);
+				log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "Node %4d at coordinates ( %15.7lf , %15.7lf )", i + 1, g->xcoord[i], g->ycoord[i]);
 			}
 		}
 		tokenfinally(param)
@@ -133,7 +133,7 @@ void read_input(instance* inst)
 
 }
 
-void read_batchfile(batchtool* bt)
+void read_batchfile(BatchTool* bt)
 {
 	// open the input file "read-only"
 	char input_file[100];
@@ -143,13 +143,13 @@ void read_batchfile(batchtool* bt)
 	if (fin == NULL) print_error(ERR_INPUT_NOT_EXISTS, input_file);
 
 	// set default values
-	grid* p_grid = &bt->p_grid;
+	Grid* p_grid = &bt->p_grid;
 	p_grid->end_reached = 0;
 	p_grid->params_num = -1;
 
 	// general section variables
 	int params_counter = 0;
-	gridparam* active_param = NULL;
+	GridParam* active_param = NULL;
 
 	// param section variables
 	int values_counter = 0;
@@ -168,7 +168,7 @@ void read_batchfile(batchtool* bt)
 				p_grid->params_num = atoi(pnum_str);
 				// allocate parameters grid
 				calloc_s(p_grid->indices, p_grid->params_num, int);
-				calloc_s(p_grid->grid_params, p_grid->params_num, gridparam);
+				calloc_s(p_grid->grid_params, p_grid->params_num, GridParam);
 
 				log_line_ext(VERBOSITY, LOGLVL_MSG, "[MESSAGE] number of batch parameters: %d", p_grid->params_num);
 

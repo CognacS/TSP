@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 	// initialize start time
 	double t1 = second();
 	// initialize instance
-	instance inst;
+	Instance inst;
 
 	// fill instance with default values
 	fill_inst_default(&inst);
@@ -25,12 +25,12 @@ int main(int argc, char **argv)
 	{
 
 		// setup csv_batchfile
-		csv_batchtool csv_bt;
+		CsvBatchTool csv_bt;
 		csv_bt.reordered = 0;
 		strcpy(csv_bt.csv_file, "output.csv");
 
 		// initialize batch tool
-		batchtool* bt = &csv_bt.bt;
+		BatchTool* bt = &csv_bt.bt;
 		strcpy(bt->input_file, inst.inst_params.batch_file);
 		// read batch file
 		read_batchfile(bt);
@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 			read_input(&inst);
 
 			// solve current instance
-			opt_result out_code = TSPopt(&inst);
+			OptResult out_code = TSPopt(&inst);
 			double measure = inst.inst_global_data.perf_measure;
 			double exec_time = inst.inst_global_data.texec;
 
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 		// close csv file
 		close_file_csv(&csv_bt);
 		// cleanup
-		free_batchtool(bt);
+		free_BatchTool(bt);
 	}
 	// *******************************************************************************
 	else
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 		// print instance if needed
 		log_datastruct(&inst, TYPE_INST, VERBOSITY, LOGLVL_DEBUG);
 
-		opt_result out_code = TSPopt(&inst);
+		OptResult out_code = TSPopt(&inst);
 
 		if (out_code == OPT_OK)
 		{

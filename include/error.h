@@ -2,7 +2,6 @@
 
 #define ERROR_H_
 
-#include <stdio.h>
 #include <stdlib.h>
 #include "log.h"
 
@@ -41,7 +40,7 @@ typedef enum
 	ERR_NO_SOLUTION = 				503,
 	ERR_ADD_CUT = 					504,
 	ERR_CB_UNDEF_PROCEDURE =		505,
-	// batchtool errors
+	// BatchTool errors
 	ERR_CSV_CANNOT_OPEN =			600,
 	ERR_CSV_NOT_REORDERED =			601,
 	// concorde errors
@@ -96,7 +95,7 @@ static const numbered_str error_msgs[] =
 	{ERR_MODEL_NOT_IMPL,			"the requested model was not implemented:"},
 	{ERR_MODEL_INCONSISTENT,		"generic inconsistency: "},
 	{ERR_NO_SOLUTION,				"no solution available"},
-	{ERR_ADD_CUT,					"error encountered in mip_add_cut():"},
+	{ERR_ADD_CUT,					"error encountered in cpx_add_cut():"},
 	{ERR_CB_UNDEF_PROCEDURE,		"undefined procedure in callback, check contextid for:"},
 	{ERR_CSV_CANNOT_OPEN,			"could not open output CSV file:"},
 	{ERR_CSV_NOT_REORDERED,			"grid not reordered before opening csv file"},

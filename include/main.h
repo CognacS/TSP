@@ -2,15 +2,8 @@
 
 #define MAIN_H_
 
-#include "random.h"
-#include "tsp.h"
-#include "log.h"
-#include "error.h"
-#include "chrono.h"
-#include "comm_parser.h"
-#include "file_parser.h"
-#include "graph_plot.h"
-#include "batch_tool.h"
+#include "optimizer.h"
 #include "batch_csv.h"
+#include "file_parser.h"
 
 #endif // !MAIN_H_

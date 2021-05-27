@@ -2,13 +2,9 @@
 
 #define CPX_MODELS_H_
 
-#include "random.h"
-#include <cut.h>
-
-#include "optimizer_data.h"
-#include "mip_utility.h"
-#include "graphs.h"
-#include "graph_plot.h"
+#include "plot.h"
+#include "cpx_utility.h"
+#include "opt_utility.h"
 
 #define CC_EPSILON 0.1
 #define CC_CUTOFF 2.0 - CC_EPSILON
@@ -17,27 +13,27 @@
 // ************************** USEFUL STRUCTURES FOR PACKING **************************
 typedef struct
 {
-	instance* inst;
+	Instance* inst;
 	void* args;
-	int (*sep_procedure)(void*, void*, instance*, void*, double*, int, int, int);
-	int (*rej_procedure)(void*, void*, instance*, void*, double*, int, int, int);
+	int (*sep_procedure)(void*, void*, Instance*, void*, double*, int, int, int);
+	int (*rej_procedure)(void*, void*, Instance*, void*, double*, int, int, int);
 	double (*prob_function)(int, double);
 	double prob_decay;
-} callback_instance;
+} CallbackInstance;
 
 typedef struct
 {
-	instance* inst;
+	Instance* inst;
 	CPXCALLBACKCONTEXTptr context;
 	double* value;
 	int* index;
 	int* labels;
 	int local;
-} concorde_instance;
-
+} ConcordeInstance;
 
 // ****************************** SYMMETRIC TSP MODELS *******************************
 // ******** CALLBACKS *********
+// callback separation function
 int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void* userhandle);
 
 // *********** CUTS ***********
@@ -46,19 +42,16 @@ int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, voi
 #define CUT_FLAGS_MINCUT_ENABLED 0b00000001
 #define CUT_LO_COEFF_DECAY 0.05
 #define CUT_HI_COEFF_DECAY 0.3
-inline double which_decay(modeltype mt) {
+inline double which_decay(ModelType mt) {
 	return (model_variant(mt) & MODEL_VAR_HI_DEC) ?
-			CUT_HI_COEFF_DECAY : CUT_LO_COEFF_DECAY;
+		CUT_HI_COEFF_DECAY : CUT_LO_COEFF_DECAY;
 }
-int add_sec_on_subtours(void* env, void* lp, instance* inst, void* args, double* xstar, int purgeable, int flags, int local);
-int CC_add_sec_on_subtours(void* env, void* lp, instance* inst, void* args, double* xstar, int purgeable, int flags, int local);
+int add_sec_on_subtours(void* env, void* lp, Instance* inst, void* args, double* xstar, int purgeable, int flags, int local);
+int CC_add_sec_on_subtours(void* env, void* lp, Instance* inst, void* args, double* xstar, int purgeable, int flags, int local);
 
 // callback function to add a user cut in CPlex from Concorde
 int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args);
 
-// 2-opt move
-double move_2opt(int* succ, graph* g, char allow_unimproving);
-double remove_crossings(int* succ, graph* g);
 
 // ********** MODELS **********
 void build_model_base_undirected(OptData* optdata);
@@ -68,7 +61,6 @@ void solve_benders(OptData* optdata);
 void solve_callback(OptData* optdata);
 void solve_symmetric_tsp(OptData* optdata);
 // ***********************************************************************************
-
 
 // ****************************** ASYMMETRIC TSP MODELS ******************************
 // *********** CUTS ***********

@@ -1,4 +1,4 @@
-#include "../graph_plot.h"
+#include "../include/plot.h"
 
 h_GPC_Plot* setup_tsp_gnuplot()
 {
@@ -28,7 +28,7 @@ h_GPC_Plot* setup_tsp_gnuplot()
 /* **************************************************************************************************
 *						XSTAR PLOTS
 ************************************************************************************************** */
-void plot_tsp_xstar_undirected(graph* g, double* xstar)
+void plot_tsp_xstar_undirected(Graph* g, double* xstar)
 {
 	// *************** setup gnuplot ***************
 	h_GPC_Plot* plot_handle = setup_tsp_gnuplot();
@@ -67,7 +67,7 @@ void plot_tsp_xstar_undirected(graph* g, double* xstar)
 	gpc_close(plot_handle);
 }
 
-void plot_tsp_xstar_directed(graph* g, double* xstar)
+void plot_tsp_xstar_directed(Graph* g, double* xstar)
 {
 	// *************** setup gnuplot ***************
 	h_GPC_Plot* plot_handle = setup_tsp_gnuplot();
@@ -118,7 +118,7 @@ void plot_tsp_xstar_directed(graph* g, double* xstar)
 /* **************************************************************************************************
 *						SUCC PLOTS
 ************************************************************************************************** */
-void plot_tsp_succ_undirected(graph* g, int* succ)
+void plot_tsp_succ_undirected(Graph* g, int* succ)
 {
 	// *************** setup gnuplot ***************
 	h_GPC_Plot* plot_handle = setup_tsp_gnuplot();
@@ -155,7 +155,7 @@ void plot_tsp_succ_undirected(graph* g, int* succ)
 }
 
 
-void plot_tsp_succ_directed(graph* g, int* succ)
+void plot_tsp_succ_directed(Graph* g, int* succ)
 {
 	// *************** setup gnuplot ***************
 	h_GPC_Plot* plot_handle = setup_tsp_gnuplot();
@@ -200,20 +200,20 @@ void plot_tsp_succ_directed(graph* g, int* succ)
 *						SOLUTION PLOTS
 ************************************************************************************************** */
 
-void plot_tsp_solution_undirected(graph* g, Solution* sol)
+void plot_tsp_solution_undirected(Graph* g, Solution* sol)
 {
 	if (sol->format & SOLFORMAT_SUCC) plot_tsp_succ_undirected(g, sol->succ);
 	else if (sol->format & SOLFORMAT_XSTAR) plot_tsp_xstar_undirected(g, sol->xstar);
 }
 
-void plot_tsp_solution_directed(graph* g, Solution* sol)
+void plot_tsp_solution_directed(Graph* g, Solution* sol)
 {
 	if (sol->format & SOLFORMAT_SUCC) plot_tsp_succ_directed(g, sol->succ);
 	else if (sol->format & SOLFORMAT_XSTAR) plot_tsp_xstar_directed(g, sol->xstar);
 }
 
 
-void plot_tsp_hardfixing_undirected(graph* g, int* succ, char* fixed, int* bridges)
+void plot_tsp_hardfixing_undirected(Graph* g, int* succ, char* fixed, int* bridges)
 {
 	// *************** setup gnuplot ***************
 	h_GPC_Plot* plot_handle = setup_tsp_gnuplot();

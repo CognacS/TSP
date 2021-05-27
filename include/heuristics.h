@@ -33,16 +33,16 @@ typedef struct Heuristic
 {
 	void (*backbone_heur) (OptData*, Solution*, struct Heuristic*, void*);
 	void* backbone_data;
-	solformat backbone_sol_format;
+	SolFormat backbone_sol_format;
 
 	void (*construct_heur) (OptData*, Solution*, void*, double);
 	void* construct_data;
-	solformat construct_sol_format;
+	SolFormat construct_sol_format;
 	double construct_timelimit;
 
 	void (*refine_heur) (OptData*, Solution*, void*, double);
 	void* refine_data;
-	solformat refine_sol_format;
+	SolFormat refine_sol_format;
 	double refine_timelimit;
 
 	char requires_cplex;
@@ -104,9 +104,9 @@ typedef struct
 
 // ******************************** AUXILIARY FUNCTIONS ******************************
 void decode_heuristic(OptData* optdata, Heuristic* heur);
-void resolve_solformats(Heuristic* heur);
-char extramileage_move(Solution* sol, graph* g, GraspData* grasp);
-void kopt_kick(Solution* sol, graph* g, int k);
+void resolve_SolFormats(Heuristic* heur);
+char extramileage_move(Solution* sol, Graph* g, SetOfNodes* ext_nodes, GraspData* grasp);
+void kopt_kick(Solution* sol, Graph* g, int k);
 
 // ********************************* BACKBONE METHODS ********************************
 void solve_heuristically(OptData* optdata);

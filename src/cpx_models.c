@@ -5,13 +5,13 @@
 ************************************************************************************************** */
 void build_model_base_undirected(OptData* optdata)
 {
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 	// ********************************* SETUP *********************************
 	// extract values
-	graph* g = &inst->inst_graph;
-	model* m = &inst->inst_model;
+	Graph* g = &inst->inst_graph;
+	Model* m = &inst->inst_model;
 	// define constants
 	double zero = 0.0;
 	char binary = 'B';
@@ -30,7 +30,7 @@ void build_model_base_undirected(OptData* optdata)
 			// define name of variable
 			sprintf(name, "x(%d,%d)", i + 1, j + 1);
 			// define coefficients
-			double obj = dist(i, j, g); // cost == distance 
+			double obj = dist(g, i, j); // cost == distance 
 			// add variable in CPX
 			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_cname))
 				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
@@ -70,7 +70,7 @@ void build_model_base_undirected(OptData* optdata)
 			nnz++;
 		}
 
-		mip_add_cut(env, lp, nnz, rhs, sense, index, value, CUT_STATIC, name, -1);
+		cpx_add_cut(env, lp, nnz, rhs, sense, index, value, CUT_STATIC, name, -1);
 	}
 	// CLEANUP
 	free(index);
@@ -84,10 +84,10 @@ void build_model_base_undirected(OptData* optdata)
 int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void* userhandle)
 {
 	// get instance handle
-	callback_instance* cb_inst = (callback_instance*)userhandle;
-	instance* inst = cb_inst->inst;
-	model* m = &inst->inst_model;
-	graph* g = &inst->inst_graph;
+	CallbackInstance* cb_inst = (CallbackInstance*)userhandle;
+	Instance* inst = cb_inst->inst;
+	Model* m = &inst->inst_model;
+	Graph* g = &inst->inst_graph;
 
 	// get stats on context
 	int cpx_node = -1;
@@ -184,12 +184,12 @@ int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, voi
 *				ADD SUBTOUR ELIMINATION CONSTRAINTS ON AN INFEASABLE SOLUTION
 ************************************************************************************************** */
 int add_sec_on_subtours(void* env, void* lp,
-	instance* inst, void* args, double* xstar,
+	Instance* inst, void* args, double* xstar,
 	int purgeable, int flags, int local)
 {
 	// extract structures
-	graph* g = &inst->inst_graph;
-	model* m = &inst->inst_model;
+	Graph* g = &inst->inst_graph;
+	Model* m = &inst->inst_model;
 
 	// ************************** FIND CONNECTED COMPONENTS **************************
 	// allocate connected components arrays
@@ -243,7 +243,7 @@ int add_sec_on_subtours(void* env, void* lp,
 			visitedcomp[comp[h++]] = 1;
 
 			// add SEC
-			mip_add_cut(env, lp, nnz, rhs, sense, index, value, purgeable, "SEC", -1);
+			cpx_add_cut(env, lp, nnz, rhs, sense, index, value, purgeable, "SEC", -1);
 			log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "Added std SEC with %d coefficients", nnz);
 		}
 
@@ -266,12 +266,12 @@ int add_sec_on_subtours(void* env, void* lp,
 *				ADD SUBTOUR ELIMINATION CONSTRAINTS USING CONCORDE
 ************************************************************************************************** */
 int CC_add_sec_on_subtours(void* env, void* lp,
-	instance* inst, void* args, double* xstar,
+	Instance* inst, void* args, double* xstar,
 	int purgeable, int flags, int local)
 {
 	// extract structures
-	graph* g = &inst->inst_graph;
-	model* m = &inst->inst_model;
+	Graph* g = &inst->inst_graph;
+	Model* m = &inst->inst_model;
 
 	// make input values
 	int nnodes = g->nnodes;
@@ -319,7 +319,7 @@ int CC_add_sec_on_subtours(void* env, void* lp,
 			}
 
 			// add SEC
-			mip_add_cut(env, lp, nnz, rhs, sense, index, value, purgeable, "SEC", 0);
+			cpx_add_cut(env, lp, nnz, rhs, sense, index, value, purgeable, "SEC", 0);
 			log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "Added cc SEC with %d coeffs, compsize %d", nnz, compscount[c]);
 
 			// increase the position in comps
@@ -335,7 +335,7 @@ int CC_add_sec_on_subtours(void* env, void* lp,
 	if ((flags & CUT_FLAGS_MINCUT_ENABLED) && ncomp == 1)
 	{
 		// make concorde callback structure
-		concorde_instance cc_inst;
+		ConcordeInstance cc_inst;
 		cc_inst.inst = inst;
 		cc_inst.context = (CPXCALLBACKCONTEXTptr)env;
 		cc_inst.local = 0;
@@ -366,10 +366,10 @@ int CC_add_sec_on_subtours(void* env, void* lp,
 ************************************************************************************************** */
 int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args)
 {
-	concorde_instance* cc_inst = (concorde_instance*)args;
-	instance* inst = cc_inst->inst;
-	graph* g = &inst->inst_graph;
-	model* m = &inst->inst_model;
+	ConcordeInstance* cc_inst = (ConcordeInstance*)args;
+	Instance* inst = cc_inst->inst;
+	Graph* g = &inst->inst_graph;
+	Model* m = &inst->inst_model;
 
 	if (cutcount > 2 && cutcount < g->nnodes)
 	{
@@ -400,7 +400,7 @@ int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args)
 		}
 
 		// add cut
-		mip_add_cut(cc_inst->context, NULL, nnz, rhs, sense, index, value, CPX_USECUT_FILTER, NULL, cc_inst->local);
+		cpx_add_cut(cc_inst->context, NULL, nnz, rhs, sense, index, value, CPX_USECUT_FILTER, NULL, cc_inst->local);
 		log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "Added mincut with %d coeffs, |S| = %d, cutval = %f", nnz, cutcount, cutval);
 
 		// reset labels for the next call
@@ -412,106 +412,19 @@ int doit_fn_concorde2cplex(double cutval, int cutcount, int* cut, void* args)
 
 	return 0;
 }
-/* **************************************************************************************************
-*						2-OPT MOVE: removes a crossing if it exists
-************************************************************************************************** */
-double move_2opt(int* succ, graph* g, char allow_unimproving)
-{
-	// define edges ab and cd as those to replace
-	// define edges ac and bd as those to insert
-	double ab_dist, cd_dist, ac_dist, bd_dist;
-	int a, b, c, d;
-	int a_min = 0, b_min = 0, c_min = 0, d_min = 0;
-	double delta_min = INFINITY;
-	double delta_curr;
 
-	a = 0;
-	// for each node of the tour
-	for (int i = 0; i < g->nnodes; i++)
-	{
-		b = succ[a];
-		ab_dist = dist(a, b, g);
-
-		// c starts after b
-		c = succ[b];
-		// for each remaining edge in the tour
-		// apart from (?, a), (a,b), (b, ?)
-		for (int j = 0; j < g->nnodes - 3; j++)
-		{
-			d = succ[c];
-			cd_dist = dist(c, d, g);
-			ac_dist = dist(a, c, g);
-			bd_dist = dist(b, d, g);
-
-			delta_curr = (ac_dist + bd_dist) - (ab_dist + cd_dist);
-			if (delta_curr < delta_min)
-			{
-				delta_min = delta_curr;
-				a_min = a;
-				b_min = b;
-				c_min = c;
-				d_min = d;
-			}
-			c = d;
-			d = succ[d];
-
-		}
-		// get to the next edge
-		a = b;
-		b = succ[b];
-	}
-
-	// if this is an improving move (delta<0)
-	// or non improving moves are allowed
-	if (delta_min < 0 || allow_unimproving)
-	{
-		// remember next of b_min
-		int new_next = b_min;
-		int new_curr = succ[b_min];
-		int new_prev;
-
-		succ[a_min] = c_min;
-		succ[b_min] = d_min;
-
-		// reverse path from b_min to c_min
-		do
-		{
-			// swap direction
-			new_prev = succ[new_curr];
-			succ[new_curr] = new_next;
-
-			// shift
-			new_next = new_curr;
-			new_curr = new_prev;
-
-		} while (new_next != c_min);
-
-
-		return delta_min;
-	}
-
-	return 0;
-}
-
-double remove_crossings(int* succ, graph* g)
-{
-	double delta_sum = 0;
-	double delta;
-	while ((delta = move_2opt(succ, g, 0)) < 0) delta_sum += delta;
-	return delta_sum;
-}
 
 /* **************************************************************************************************
 *						SOLUTION USING BENDERS' METHOD
 ************************************************************************************************** */
 void solve_benders(OptData* optdata)
 {
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 	int error;
 	// extract structures
-	graph* g = &inst->inst_graph;
+	Graph* g = &inst->inst_graph;
 
 	// build naive model
 	build_model_base_undirected(optdata);
@@ -539,7 +452,7 @@ void solve_benders(OptData* optdata)
 		log_line_ext(VERBOSITY, LOGLVL_INFO, "Added %d new SEC's", newcuts);
 
 		// update time limit
-		mip_timelimit(optdata, inst->inst_params.timelimit);
+		cpx_timelimit(optdata, inst->inst_params.timelimit);
 
 	} while (newcuts && !time_limit_expired(inst));
 
@@ -553,11 +466,11 @@ void solve_benders(OptData* optdata)
 ************************************************************************************************** */
 void solve_callback(OptData* optdata)
 {
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 	int error;
-	modeltype mt = inst->inst_params.model_type;
+	ModelType mt = inst->inst_params.model_type;
 	int nnodes = inst->inst_graph.nnodes;
 
 	// ********************** SETUP STARTING MODEL **********************
@@ -590,7 +503,7 @@ void solve_callback(OptData* optdata)
 	}
 
 	// make callback instance
-	callback_instance cb_inst;
+	CallbackInstance cb_inst;
 	cb_inst.inst = inst;
 	cb_inst.args = args;
 	cb_inst.sep_procedure = use_cc_sep ? CC_add_sec_on_subtours : NULL;
@@ -650,11 +563,11 @@ void solve_callback(OptData* optdata)
 ************************************************************************************************** */
 void solve_symmetric_tsp(OptData* optdata)
 {
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 
-	modeltype mt = inst->inst_params.model_type;
+	ModelType mt = inst->inst_params.model_type;
 	// if the tsptype of the model is not asymmetric, throw error
 	if (model_tsptype(mt) != MODEL_TSP_SYMM)
 		print_error(ERR_WRONG_TSP_PROCEDURE, NULL);
@@ -679,13 +592,13 @@ void solve_symmetric_tsp(OptData* optdata)
 ************************************************************************************************** */
 void build_model_base_directed(OptData* optdata)
 {
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 	// ********************************* SETUP *********************************
 	// extract values
-	graph* g = &inst->inst_graph;
-	model* m = &inst->inst_model;
+	Graph* g = &inst->inst_graph;
+	Model* m = &inst->inst_model;
 	// define constants
 	double zero = 0.0;
 	char binary = 'B';
@@ -703,7 +616,7 @@ void build_model_base_directed(OptData* optdata)
 		for (int j = i + 1; j < g->nnodes; j++)
 		{
 			// define cost
-			double obj = dist(i, j, g); // cost == distance
+			double obj = dist(g, i, j); // cost == distance
 
 			// 1 - define x(i,j)
 			// define name of variable
@@ -759,11 +672,11 @@ void build_model_base_directed(OptData* optdata)
 		// OUTGOING CONSTRAINT
 		// define name of constraints
 		sprintf(name, "degree_out(%d)", h + 1);
-		mip_add_cut(env, lp, nnz, rhs, sense, index_out, value_out, CUT_STATIC, name, -1);
+		cpx_add_cut(env, lp, nnz, rhs, sense, index_out, value_out, CUT_STATIC, name, -1);
 		// INGOING CONSTRAINT
 		// define name of constraint
 		sprintf(name, "degree_in(%d)", h + 1);
-		mip_add_cut(env, lp, nnz, rhs, sense, index_in, value_in, CUT_STATIC, name, -1);
+		cpx_add_cut(env, lp, nnz, rhs, sense, index_in, value_in, CUT_STATIC, name, -1);
 	}
 
 	// CLEANUP
@@ -777,15 +690,15 @@ void build_model_base_directed(OptData* optdata)
 ************************************************************************************************** */
 void build_model_mtz(OptData* optdata)
 {
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 	// construct the base model for directed graphs
 	build_model_base_directed(optdata);
 
 	// extract values
-	graph* g = &inst->inst_graph;
-	modeltype mt = inst->inst_params.model_type;
+	Graph* g = &inst->inst_graph;
+	ModelType mt = inst->inst_params.model_type;
 	// define name of constraints
 	char name[100];
 
@@ -835,7 +748,7 @@ void build_model_mtz(OptData* optdata)
 			value[2] = big_M;
 
 			// add constraint
-			mip_add_cut(env, lp, nnz, rhs, sense, index, value, constr_type, name, -1);
+			cpx_add_cut(env, lp, nnz, rhs, sense, index, value, constr_type, name, -1);
 		}
 	}
 }
@@ -845,15 +758,15 @@ void build_model_mtz(OptData* optdata)
 ************************************************************************************************** */
 void build_model_gg(OptData* optdata)
 {
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 	// construct the base model for directed graphs
 	build_model_base_directed(optdata);
 
 	// extract values
-	graph* g = &inst->inst_graph;
-	modeltype mt = inst->inst_params.model_type;
+	Graph* g = &inst->inst_graph;
+	ModelType mt = inst->inst_params.model_type;
 
 	char name[100];
 
@@ -908,7 +821,7 @@ void build_model_gg(OptData* optdata)
 		value[0] = g->nnodes - 1.0;
 		index[1] = ypos(0, j, g->nnodes);
 		value[1] = -1.0;
-		mip_add_cut(env, lp, nnz, rhs, sense, index, value, constr_type, name, -1);
+		cpx_add_cut(env, lp, nnz, rhs, sense, index, value, constr_type, name, -1);
 	}
 
 	sense = 'G';
@@ -924,7 +837,7 @@ void build_model_gg(OptData* optdata)
 			value[0] = g->nnodes - 2.0;
 			index[1] = ypos(i, j, g->nnodes);
 			value[1] = -1.0;
-			mip_add_cut(env, lp, nnz, rhs, sense, index, value, constr_type, name, -1);
+			cpx_add_cut(env, lp, nnz, rhs, sense, index, value, constr_type, name, -1);
 		}
 	}
 	
@@ -956,7 +869,7 @@ void build_model_gg(OptData* optdata)
 			value_flow[arr_idx+g->nnodes-1] = -1.0;
 			arr_idx++;
 		}
-		mip_add_cut(env, lp, nnz, rhs, sense, index_flow, value_flow, constr_type, name, -1);
+		cpx_add_cut(env, lp, nnz, rhs, sense, index_flow, value_flow, constr_type, name, -1);
 	}
 
 	free(index_flow);
@@ -970,10 +883,10 @@ void build_model_gg(OptData* optdata)
 
 void add_sec2_asymmetric(OptData* optdata)
 {
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
-	graph* g = &inst->inst_graph;
+	Graph* g = &inst->inst_graph;
 
 	// add lazy constraints 1.0 * x_ij + 1.0 * x_ji <= 1, for each arc (i,j) with i < j
 	char name[100];
@@ -991,7 +904,7 @@ void add_sec2_asymmetric(OptData* optdata)
 			value[0] = 1.0;
 			index[1] = xxpos(j, i, g->nnodes);
 			value[1] = 1.0;
-			mip_add_cut(env, lp, nnz, rhs, sense, index, value, CUT_LAZY, name, -1);
+			cpx_add_cut(env, lp, nnz, rhs, sense, index, value, CUT_LAZY, name, -1);
 		}
 	}
 }
@@ -1001,11 +914,11 @@ void add_sec2_asymmetric(OptData* optdata)
 ************************************************************************************************** */
 void solve_asymmetric_tsp(OptData* optdata)
 {
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 
-	modeltype mt = inst->inst_params.model_type;
+	ModelType mt = inst->inst_params.model_type;
 	// if the tsptype of the model is not asymmetric, throw error
 	if (model_tsptype(mt) != MODEL_TSP_ASYMM) print_error(ERR_WRONG_TSP_PROCEDURE, NULL);
 

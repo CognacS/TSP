@@ -51,21 +51,21 @@ void solve_heuristically(OptData* optdata)
 
 	// if cplex is required during the heuristic procedure, build the best cplex
 	// model available
-	callback_instance cb_inst;
+	CallbackInstance cb_inst;
 	if (heur.requires_cplex)
 	{
 		log_line(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Cplex needed: setting up"),
 
 		// ********************** SETUP BASE MODEL **********************
 		// setup cplex for use
-		mip_setup_cplex(optdata);
+		cpx_setup_cplex(optdata);
 
 		// build naive model
 		build_model_base_undirected(optdata);
 
 		// ********************** BUILD DATASTRUCTURES **********************
 		// unpack
-		instance* inst = optdata->inst;
+		Instance* inst = optdata->inst;
 		CPXENVptr env = optdata->cpx->env;
 		CPXLPptr lp = optdata->cpx->lp;
 
@@ -104,11 +104,11 @@ void solve_heuristically(OptData* optdata)
 	// if need to log progress during the heuristic, build a performance log
 	if (VERBOSITY >= LOGLVL_PLOTSOL)
 	{
-		optdata->perflog = newLinkedList();
+		optdata->perflog = LL_new();
 	}
 
 	// resolve solution format problems (xstar, succ)
-	resolve_solformats(&heur);
+	resolve_SolFormats(&heur);
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Solution formats: bb=%x ct=%x rf=%x",
 		heur.backbone_sol_format, heur.construct_sol_format, heur.refine_sol_format);
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Possible formats are: \n"
@@ -127,7 +127,7 @@ void solve_heuristically(OptData* optdata)
 	// ********************** WORK WITH FOUND SOLUTION **********************
 	// pass solution to instance
 	convert_solution(&final_sol, SOLFORMAT_XSTAR);
-	global_data* gd = &optdata->inst->inst_global_data;
+	GlobalData* gd = &optdata->inst->inst_global_data;
 	gd->xstar = final_sol.xstar;
 	gd->zbest = final_sol.cost;
 
@@ -154,7 +154,7 @@ void solve_heuristically(OptData* optdata)
 void decode_heuristic(OptData* optdata, Heuristic* heur)
 {
 	// unpack
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 	char* code = inst->inst_params.heuristic_code;
@@ -343,10 +343,10 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 /* **************************************************************************************************
 *					RESOLVE CONVERSIONS INSIDE THE BACKBONE HEURISTIC METHOD
 ************************************************************************************************** */
-void resolve_solformats(Heuristic* heur)
+void resolve_SolFormats(Heuristic* heur)
 {
 	// emphasis on common format between backbone and refinement
-	solformat bb_rf_common_format =
+	SolFormat bb_rf_common_format =
 		heur->backbone_sol_format &
 		heur->refine_sol_format;
 	
@@ -360,7 +360,7 @@ void resolve_solformats(Heuristic* heur)
 	}
 
 	// finally find common format between backbone and construction
-	solformat cn_bb_common_format =
+	SolFormat cn_bb_common_format =
 		heur->construct_sol_format &
 		heur->backbone_sol_format;
 
@@ -383,14 +383,12 @@ void resolve_solformats(Heuristic* heur)
 /* **************************************************************************************************
 *				ADD A NODE TO THE SOLUTION'S TOUR THROUGH THE extramileage PROCEDURE
 ************************************************************************************************** */
-char extramileage_move(Solution* sol, graph* g, GraspData* grasp)
+char extramileage_move(Solution* sol, Graph* g, SetOfNodes* ext_nodes, GraspData* grasp)
 {
-	// get unvisited nodes
-	int* unvisited_nodes = NULL;	arr_malloc_s(unvisited_nodes, sol->nnodes, int);
-	int unvisited_nodes_num = compute_list_unvisited_nodes(sol, unvisited_nodes);
 
-	// if an extramileage move can be made
-	if (unvisited_nodes_num > 0)
+	// if an extramileage move can be made (nodes can be added to the tour)
+	char move_doable = !SETN_isempty(ext_nodes);
+	if (move_doable)
 	{
 		// setup iterator
 		SolutionIterator iter;
@@ -416,11 +414,12 @@ char extramileage_move(Solution* sol, graph* g, GraspData* grasp)
 			next_ready = next_node_in_solution(&iter);
 			next = iter.curr;
 			// iterate unvisited nodes
-			for (int i = 0; i < unvisited_nodes_num; i++)
+			for (int i = 0; i < ext_nodes->curr_size; i++)
 			{
-				ext = unvisited_nodes[i];
+				// extract a node from the set of unvisited nodes
+				ext = SETN_get(ext_nodes, i);
 				// if the triplet (prev, next, ext) has a low enough delta cost
-				if (OIA_eligible(candpool, (delta = delta_cost(prev, next, ext, g))))
+				if (OIA_eligible(candpool, (delta = delta_cost(g, prev, next, ext))))
 				{
 					// insert it
 					OIA_insert(candpool, candpool_size, OIA_pack3(prev, next, ext, delta));
@@ -447,16 +446,18 @@ char extramileage_move(Solution* sol, graph* g, GraspData* grasp)
 		log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "Found triangle %d, %d, %d with delta cost = %f",
 			a, b, c, cand_chosen.value);
 
-		rem_edge_solution(sol, a, b, dist(a, b, g));
-		add_edge_solution(sol, a, c, dist(a, c, g));
-		add_edge_solution(sol, c, b, dist(c, b, g));
+		rem_edge_solution(sol, a, b, dist(g, a, b));
+		add_edge_solution(sol, a, c, dist(g, a, c));
+		add_edge_solution(sol, c, b, dist(g, c, b));
 
 		free(candpool);
+
+		// remove chosen external node c from the set
+		SETN_remove(ext_nodes, c);
+
 	}
 
-	free(unvisited_nodes);
-
-	return unvisited_nodes_num > 0;
+	return move_doable;
 }
 
 /* **************************************************************************************************
@@ -466,7 +467,7 @@ char extramileage_move(Solution* sol, graph* g, GraspData* grasp)
 *			- pick their respective succ: s1, s2,... sk
 *			- shift all succ such that succ[ni] = s_{(i+1) mod N}
 ************************************************************************************************** */
-void kopt_kick(Solution* sol, graph* g, int k)
+void kopt_kick(Solution* sol, Graph* g, int k)
 {
 	int nnodes = g->nnodes;
 
@@ -515,9 +516,9 @@ void kopt_kick(Solution* sol, graph* g, int k)
 	for (int i = 0; i < k; i++)
 	{
 		node = chosen_nodes[i];
-		cost_add -= dist(node, sol->succ[node], g);
+		cost_add -= dist(g, node, sol->succ[node]);
 		sol->succ[node] = succ_nodes[(k + i - 2) % k];
-		cost_add += dist(node, sol->succ[node], g);
+		cost_add += dist(g, node, sol->succ[node]);
 	}
 
 	// change overall cost of solution
@@ -536,10 +537,10 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 {
 	// ******************************** SETUP ********************************
 	// unpack
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 
 	// startup solution and format it for construction
-	empty_solution(sol, heur->construct_sol_format, inst->inst_graph.nnodes);
+	create_solution(sol, heur->construct_sol_format, inst->inst_graph.nnodes);
 
 	// ************************* CONSTRUCT STARTING SOLUTION *************************
 	double timelimit, time_passed = 0, time_phase, t_start;
@@ -608,10 +609,10 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 {
 	// ******************************** SETUP ********************************
 	// unpack
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 
 	// startup solution and format it for construction
-	empty_solution(sol, heur->construct_sol_format, inst->inst_graph.nnodes);
+	create_solution(sol, heur->construct_sol_format, inst->inst_graph.nnodes);
 
 	// ************************* CONSTRUCT STARTING SOLUTION *************************
 	double timelimit, time_passed = 0, time_phase, t_start;
@@ -646,7 +647,7 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 	Solution st_curr_sol;
 	Solution* curr_sol = &st_curr_sol;
 	// initialize and copy best solution to the current solution
-	empty_solution(curr_sol, best_sol->format, best_sol->nnodes);
+	create_solution(curr_sol, best_sol->format, best_sol->nnodes);
 	deep_copy_solution(curr_sol, best_sol);
 
 	// iterate until time expires or the refining heuristic cannot find a better solution (local opt)
@@ -654,7 +655,7 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 	{
 		// ***************************** REFINE SOLUTION *****************************
 		log_line_ext(VERBOSITY, LOGLVL_MSG, "************ STARTING EPOCH %d ************", epoch++);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS BEFORE 2-OPT MOVE: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS BEFORE REFINEMENT: %d", check_succ(curr_sol->succ, curr_sol->nnodes));
 		// // convert solution to the refinement format
 		if (!convert_solution(curr_sol, heur->refine_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
 		// compute timelimit for refinement heuristic
@@ -670,8 +671,8 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 		time_passed += time_phase;
 
 		// log
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS BEFORE K-OPT KICK: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
-		if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_directed(&inst->inst_graph, curr_sol);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS AFTER REFINEMENT: %d", check_succ(curr_sol->succ, curr_sol->nnodes));
+		if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_undirected(&inst->inst_graph, curr_sol);
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] 1 iteration of refinement done in %f sec.s", time_phase);
 
 		// ***************************** CHECK SOLUTION ******************************
@@ -685,7 +686,7 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 			// log new best solution
 			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: New best solution found, cost = %f", best_sol->cost);
 			if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog, time_passed, best_sol->cost);
-			if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_directed(&inst->inst_graph, best_sol);
+			if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, best_sol);
 			// reset kick size
 			kick_k = 3;
 		}
@@ -697,8 +698,8 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 			// kick the solution in its k-opt neighborhood
 			kopt_kick(curr_sol, &inst->inst_graph, kick_k);
 			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Kicked solution in its %d-OPT neighborhood", kick_k);
-			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS AFTER K-OPT KICK: %d\n", check_succ(curr_sol->succ, curr_sol->nnodes));
-			if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_directed(&inst->inst_graph, curr_sol);
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS AFTER K-OPT KICK: %d", check_succ(curr_sol->succ, curr_sol->nnodes));
+			if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_undirected(&inst->inst_graph, curr_sol);
 			// increase k
 			kick_k = min(kick_k+1, curr_sol->nnodes);
 		}
@@ -721,13 +722,13 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 void construct_tspsolver(OptData* optdata, Solution* sol, void* data, double timelim)
 {
 	// unpack
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 
 	// ********************** OPTIMIZE **********************
 	// solve the problem with the callback
-	mip_timelimit(optdata, timelim);
+	cpx_timelimit(optdata, timelim);
 	CPXsetintparam(env, CPX_PARAM_MIPEMPHASIS, CPX_MIPEMPHASIS_HEURISTIC);
 	int error;
 	if (error = CPXmipopt(env, lp))
@@ -738,7 +739,7 @@ void construct_tspsolver(OptData* optdata, Solution* sol, void* data, double tim
 
 	// ********************** EXTRACT **********************
 	// get the optimal solution
-	mip_extract_sol_obj(optdata, sol, "TSP solver");
+	cpx_extract_sol_obj(optdata, sol, "TSP solver");
 
 }
 
@@ -755,8 +756,8 @@ void construct_greedy(OptData* optdata, Solution* sol, void* data, double timeli
 	double start_time = second();
 	
 	// unpack optdata
-	instance* inst = optdata->inst;
-	graph* g = &inst->inst_graph;
+	Instance* inst = optdata->inst;
+	Graph* g = &inst->inst_graph;
 
 	// unpack cnstdata
 	GreedyAlgoData* cnstdata = (GreedyAlgoData*)data;
@@ -770,7 +771,7 @@ void construct_greedy(OptData* optdata, Solution* sol, void* data, double timeli
 	sol->cost = INFINITY;
 	Solution st_curr_sol;
 	Solution* curr_sol = &st_curr_sol;
-	empty_solution(curr_sol, sol->format, sol->nnodes);
+	create_solution(curr_sol, sol->format, sol->nnodes);
 	Solution* swap_sol;
 
 	// ******************************* ITERATE THROUGH *******************************
@@ -789,7 +790,7 @@ void construct_greedy(OptData* optdata, Solution* sol, void* data, double timeli
 		// reset visited nodes
 		for (int i = 0; i < g->nnodes; i++) visited[i] = 0;
 		// clear solution
-		clear_solution(curr_sol);
+		erase_solution(curr_sol);
 
 		// for every nodes in the path
 		for (int n = 0; n < g->nnodes-1; n++)
@@ -804,7 +805,7 @@ void construct_greedy(OptData* optdata, Solution* sol, void* data, double timeli
 			for (int h = 0; h < g->nnodes; h++)
 			{
 				// if not visited and is eligible to be a candidate
-				if (!visited[h] && OIA_eligible(candpool, (h_dist = dist(curr, h, g))))
+				if (!visited[h] && OIA_eligible(candpool, (h_dist = dist(g, curr, h))))
 				{
 					// insert h in the pool of candidates
 					OIA_insert(candpool, candpool_size, OIA_pack1(h, h_dist));
@@ -822,7 +823,7 @@ void construct_greedy(OptData* optdata, Solution* sol, void* data, double timeli
 			curr = cand_chosen.index.arr[0];
 		}
 		// link last node with start
-		add_edge_solution(curr_sol, curr, start, dist(curr, start, g));
+		add_edge_solution(curr_sol, curr, start, dist(g, curr, start));
 
 		// check if current solution is the best until now, if so swap them
 		if (curr_sol->cost < best_sol->cost)
@@ -830,7 +831,7 @@ void construct_greedy(OptData* optdata, Solution* sol, void* data, double timeli
 			swap_sol = best_sol;
 			best_sol = curr_sol;
 			curr_sol = swap_sol;
-			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Found a new best solution with cost %f", best_sol->cost);
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Found a new best solution with cost %f", best_sol->cost);
 		}
 		
 		// if timelimit is reached, break
@@ -867,8 +868,8 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 	double start_time = second();
 
 	// unpack optdata
-	instance* inst = optdata->inst;
-	graph* g = &inst->inst_graph;
+	Instance* inst = optdata->inst;
+	Graph* g = &inst->inst_graph;
 
 	// unpack cnstdata
 	ExtraMileageData* cnstdata = (ExtraMileageData*)data;
@@ -884,15 +885,15 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 	Solution st_curr_sol;
 	Solution* curr_sol = &st_curr_sol;
 	// setup solution as an empty solution (no edges)
-	empty_solution(curr_sol, sol->format, sol->nnodes);
+	create_solution(curr_sol, sol->format, sol->nnodes);
 	Solution* swap_sol;
 
 	// ************************** BUILD INITIAL CONFIGURATION ************************
 	Solution st_starting_sol;
 	Solution* starting_sol = &st_starting_sol;
-	empty_solution(starting_sol, sol->format, sol->nnodes);
+	create_solution(starting_sol, sol->format, sol->nnodes);
 	// clear solution
-	clear_solution(starting_sol);
+	erase_solution(starting_sol);
 	int a, b;
 	double ab_dist;
 	switch (variant_startingchoice)
@@ -904,7 +905,7 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 		a = (int)(random() * g->nnodes);
 		b = (int)(random() * g->nnodes);
 		if (a == b) b = (b + 1) % g->nnodes;
-		ab_dist = dist(a, b, g);
+		ab_dist = dist(g, a, b);
 		add_edge_solution(starting_sol, a, b, ab_dist);
 		starting_sol->handle_node = a;
 		break;
@@ -919,10 +920,16 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 	// plot solution if needed
 	if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_undirected(g, starting_sol);
 
+	// compute set of unvisited nodes
+	SetOfNodes* set_unv_start = compute_set_unvisited_nodes(starting_sol);
+	SetOfNodes* set_unv_curr = SETN_new(set_unv_start->max_size, set_unv_start->nnodes);
+
 	do
 	{
 		// copy starting solution on the current solution
 		deep_copy_solution(curr_sol, starting_sol);
+		// copy unvisited nodes on the current set of unvisited nodes
+		SETN_deepcopy(set_unv_curr, set_unv_start);
 
 		// ******************************** FILL SOLUTION ********************************
 		// for every remaining node, do an extra milage move
@@ -933,7 +940,7 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 			i++;
 			if ((VERBOSITY >= LOGLVL_DEBUGPLOT_PP) && (i % log_period == 0)) plot_tsp_solution_undirected(g, curr_sol);
 
-		} while (extramileage_move(curr_sol, g, &cnstdata->grasp));
+		} while (extramileage_move(curr_sol, g, set_unv_curr , &cnstdata->grasp));
 
 		// check if current solution is the best until now, if so swap them
 		if (curr_sol->cost < best_sol->cost)
@@ -941,13 +948,17 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 			swap_sol = best_sol;
 			best_sol = curr_sol;
 			curr_sol = swap_sol;
-			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Found a new best solution with cost %f", best_sol->cost);
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Found a new best solution with cost %f", best_sol->cost);
 		}
 
 		// if timelimit is reached, break
 		if (second() - start_time >= timelim) break;
 
 	} while (p_dev > 0.0);
+
+	// free sets
+	SETN_free(set_unv_start);
+	SETN_free(set_unv_curr);
 
 	// copy the best known solution into the final solution (freeing what is not needed)
 	if (sol != best_sol) shallow_copy_solution(sol, best_sol);
@@ -973,7 +984,7 @@ void refine_hardfixing(OptData* optdata, Solution* sol, void* data, double timel
 {
 	// ************************************ SETUP ************************************
 	// unpack optdata
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 
@@ -1092,8 +1103,8 @@ void refine_hardfixing(OptData* optdata, Solution* sol, void* data, double timel
 	// ******************************** OPTIMIZATION *********************************
 	// optimize with cplex
 	int error;
-	mip_timelimit(optdata, timelim);
-	mip_warmstart(optdata, xstar);
+	cpx_timelimit(optdata, timelim);
+	cpx_warmstart(optdata, xstar);
 	CPXsetintparam(env, CPX_PARAM_MIPEMPHASIS, CPX_MIPEMPHASIS_BALANCED);
 	if (error = CPXmipopt(env, lp))
 		print_error_ext(ERR_CPLEX, "CPXmipopt() Hardfixing, CPX error: %d", error);
@@ -1106,7 +1117,7 @@ void refine_hardfixing(OptData* optdata, Solution* sol, void* data, double timel
 	// ********************** EXTRACT SOLUTION AND UPDATE METHOD *********************
 	// extract best solution (expected to be already allocated in the construction phase!)
 	double obj_before = sol->cost;
-	mip_extract_sol_obj(optdata, sol, "Hardfixing");
+	cpx_extract_sol_obj(optdata, sol, "Hardfixing");
 	double obj_after = sol->cost;
 	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Solution improved by %f%%", (obj_before - obj_after) / obj_before);
 
@@ -1188,7 +1199,7 @@ void refine_localbranching(OptData* optdata, Solution* sol, void* data, double t
 {
 	// ************************************ SETUP ************************************
 	// unpack optdata
-	instance* inst = optdata->inst;
+	Instance* inst = optdata->inst;
 	CPXENVptr env = optdata->cpx->env;
 	CPXLPptr lp = optdata->cpx->lp;
 
@@ -1232,13 +1243,13 @@ void refine_localbranching(OptData* optdata, Solution* sol, void* data, double t
 
 	// add the constraint
 	int constr_idx = CPXgetnumrows(env, lp);
-	mip_add_cut(env, lp, nnz, rhs, sense, index, value, CUT_STATIC, "k-OPT neighborhood constraint", -1);
+	cpx_add_cut(env, lp, nnz, rhs, sense, index, value, CUT_STATIC, "k-OPT neighborhood constraint", -1);
 
 	// ******************************** OPTIMIZATION *********************************
 	// optimize with cplex
 	int error;
-	mip_timelimit(optdata, timelim);
-	mip_warmstart(optdata, xstar);
+	cpx_timelimit(optdata, timelim);
+	cpx_warmstart(optdata, xstar);
 	CPXsetintparam(env, CPX_PARAM_MIPEMPHASIS, CPX_MIPEMPHASIS_BALANCED);
 	if (error = CPXmipopt(env, lp))
 		print_error_ext(ERR_CPLEX, "CPXmipopt() Localbranching, CPX error: %d", error);
@@ -1251,7 +1262,7 @@ void refine_localbranching(OptData* optdata, Solution* sol, void* data, double t
 	// ********************** EXTRACT SOLUTION AND UPDATE METHOD *********************
 	// extract best solution (expected to be already allocated in the construction phase!)
 	double obj_before = sol->cost;
-	mip_extract_sol_obj(optdata, sol, "Localbranching");
+	cpx_extract_sol_obj(optdata, sol, "Localbranching");
 	double obj_after = sol->cost;
 	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Solution improved by %f%%", (obj_before - obj_after) / obj_before);
 

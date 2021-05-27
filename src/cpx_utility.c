@@ -1,18 +1,34 @@
-#include "../include/mip_utility.h"
+#include "../include/cpx_utility.h"
+
+int upos(int i, int nnodes)
+{
+	// if index is of first node throw error
+	if (i == 0) print_error(ERR_INVALID_FUNC_ARGS, "got node 0 in upos");
+	// else return upos
+	return i - 1 + (nnodes - 1) * nnodes;
+}
+
+int ypos(int i, int j, int nnodes)
+{
+	// if indices are equal throw error
+	if (i == j) print_error(ERR_INVALID_FUNC_ARGS, "got equal indices in ypos");
+	// else return ypos
+	return xxpos(i, j, nnodes) + (nnodes - 1) * nnodes;
+}
 
 /*********************************************************************************************************************************************************/
-void mip_add_cut(void* env, void* lp,
+void cpx_add_cut(void* env, void* lp,
 	int nnz, double rhs, char sense,
 	int* index, double* value, int purgeable, char* name, int local)
-/*********************************************************************************************************************************************************/
+	/*********************************************************************************************************************************************************/
 {
 
 	/*
 		unified driver to add constraints to the LP; usage:
-			mip_add_cut(env,	 lp,	nnz, rhs, sense, index, value, name, -1,	CUT_STATIC);   			// add static constr to LP
-			mip_add_cut(env,	 lp,	nnz, rhs, sense, index, value, name, -1,	CUT_LAZY);   			// add lazy constr to LP
-			mip_add_cut(context, NULL,	nnz, rhs, sense, index, value, NULL, local, purgeable); 			// from callbacks, add user cut
-			mip_add_cut(context, NULL,	nnz, rhs, sense, index, value, NULL, -1,	CUT_CALLBACK_REJECT);	// from callbacks, reject candidate
+			cpx_add_cut(env,	 lp,	nnz, rhs, sense, index, value, name, -1,	CUT_STATIC);   			// add static constr to LP
+			cpx_add_cut(env,	 lp,	nnz, rhs, sense, index, value, name, -1,	CUT_LAZY);   			// add lazy constr to LP
+			cpx_add_cut(context, NULL,	nnz, rhs, sense, index, value, NULL, local, purgeable); 			// from callbacks, add user cut
+			cpx_add_cut(context, NULL,	nnz, rhs, sense, index, value, NULL, -1,	CUT_CALLBACK_REJECT);	// from callbacks, reject candidate
 	*/
 
 	int izero = 0;
@@ -52,10 +68,10 @@ void mip_add_cut(void* env, void* lp,
 	print_error(ERR_ADD_CUT, "purgeable flag unknown");
 }
 
-void mip_setup_cplex(OptData* optdata)
+void cpx_setup_cplex(OptData* optdata)
 {
-	instance* inst = optdata->inst;
-	params* p = &(inst->inst_params);
+	Instance* inst = optdata->inst;
+	Params* p = &(inst->inst_params);
 
 	// allocate datastruct
 	if (optdata->cpx != NULL) print_error(ERR_OPT_CPLEX_REDEFINITION, NULL);
@@ -79,10 +95,10 @@ void mip_setup_cplex(OptData* optdata)
 	}
 
 	// setup time limit
-	mip_timelimit(optdata, p->timelimit);
+	cpx_timelimit(optdata, p->timelimit);
 }
 
-void mip_close_cplex(OptData* optdata)
+void cpx_close_cplex(OptData* optdata)
 {
 	CplexData* cpx = optdata->cpx;
 	if (cpx == NULL) return;
@@ -92,14 +108,14 @@ void mip_close_cplex(OptData* optdata)
 	free_s(optdata->cpx);
 }
 
-int mip_solution_available(OptData* optdata)
+int cpx_solution_available(OptData* optdata)
 {
 	double zz;
 	if (CPXgetobjval(optdata->cpx->env, optdata->cpx->lp, &zz)) return 0;
 	return 1;
 }
 
-void mip_warmstart(OptData* optdata, double* xstar)
+void cpx_warmstart(OptData* optdata, double* xstar)
 {
 	int ncols = optdata->inst->inst_model.ncols;
 
@@ -115,10 +131,10 @@ void mip_warmstart(OptData* optdata, double* xstar)
 	free(varindices);
 }
 
-void mip_extract_sol_obj_lb(OptData* optdata, char* zone_name)
+void cpx_extract_sol_obj_lb(OptData* optdata, char* zone_name)
 {
 	int ncols = optdata->inst->inst_model.ncols;
-	global_data* gd = &(optdata->inst->inst_global_data);
+	GlobalData* gd = &(optdata->inst->inst_global_data);
 
 	int error;
 	// get the optimal solution
@@ -134,7 +150,7 @@ void mip_extract_sol_obj_lb(OptData* optdata, char* zone_name)
 		print_error_ext(ERR_CPLEX, "CPXgetbestobjval() %s, CPX error: %d", zone_name, error);
 }
 
-void mip_extract_sol_obj(OptData* optdata, Solution* sol, char* zone_name)
+void cpx_extract_sol_obj(OptData* optdata, Solution* sol, char* zone_name)
 {
 	int ncols = optdata->inst->inst_model.ncols;
 	int error;
@@ -150,7 +166,7 @@ void mip_extract_sol_obj(OptData* optdata, Solution* sol, char* zone_name)
 		print_error_ext(ERR_CPLEX, "CPXgetobjval() %s, CPX error: %d", zone_name, error);
 }
 
-void mip_timelimit(OptData* optdata, double timelimit)
+void cpx_timelimit(OptData* optdata, double timelimit)
 {
 	double residual_time = optdata->inst->inst_global_data.tstart + optdata->inst->inst_params.timelimit - second();
 	if (residual_time < 0.0) residual_time = 0.0;
@@ -158,23 +174,4 @@ void mip_timelimit(OptData* optdata, double timelimit)
 	CPXsetintparam(optdata->cpx->env, CPX_PARAM_CLOCKTYPE, 2);
 	CPXsetdblparam(optdata->cpx->env, CPX_PARAM_TILIM, computed_timelimit);	// real time
 	CPXsetdblparam(optdata->cpx->env, CPX_PARAM_DETTILIM, TICKS_PER_SECOND * computed_timelimit);	// ticks
-}
-
-double residual_time(instance* inst)
-{
-	return inst->inst_global_data.tstart + inst->inst_params.timelimit - second();
-}
-
-int time_limit_expired(instance* inst)
-{
-	global_data* gd = &inst->inst_global_data;
-	params* p = &inst->inst_params;
-
-	double tspan = second() - gd->tstart;
-	if (tspan > p->timelimit)
-	{
-		print_warn_ext(WARN_EXPIRED_TIMELIMIT, "limit of %10.1lf sec.s expired after %10.1lf sec.s", p->timelimit, tspan);
-		return 1;
-	}
-	return 0;
 }

@@ -2,23 +2,21 @@
 
 #define BATCH_CSV_H_
 
-#include "log.h"
-#include "error.h"
 #include "batch_tool.h"
 
 typedef struct
 {
 	char csv_file[MAX_SIZE_FILE_NAME];
-	batchtool bt;
+	BatchTool bt;
 	FILE* csv_fp;
 	int reordered;
 
-}csv_batchtool;
+}CsvBatchTool;
 
-void open_file_csv(csv_batchtool* bt);
-void close_file_csv(csv_batchtool* bt);
-void reorder_grid_csv(csv_batchtool* bt);
-void register_measure_csv(csv_batchtool* bt, double measure);
-void newline_csv(csv_batchtool* bt);
+void open_file_csv(CsvBatchTool* bt);
+void close_file_csv(CsvBatchTool* bt);
+void reorder_grid_csv(CsvBatchTool* bt);
+void register_measure_csv(CsvBatchTool* bt, double measure);
+void newline_csv(CsvBatchTool* bt);
 
 #endif
