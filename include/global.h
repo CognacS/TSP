@@ -20,4 +20,18 @@ int is_one(double num);
 int is_zero_strict(double num);
 int is_one_strict(double num);
 
+// utility functions
+
+#define swap(a, b) \
+do\
+{\
+int c = (a); (a) = (b); (b) = c;\
+} while(0)
+
+#define swap_ext(a, b, c) \
+do\
+{\
+(c) = (a); (a) = (b); (b) = (c);\
+} while(0)
+
 #endif

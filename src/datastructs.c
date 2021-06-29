@@ -96,10 +96,17 @@ char SETN_remove(SetOfNodes* set, int node)
 		set->nodes[node_idx] = last_node;
 		// set last node index as the previous removed node index
 		set->indices[last_node] = node_idx;
+		set->indices[node] = -1;
 		set->curr_size--;
 		return 1;
 	}
 	return 0;
+}
+
+int SETN_rand_node(SetOfNodes* set)
+{
+	int idx = rand_int(set->curr_size);
+	return set->nodes[idx];
 }
 
 char SETN_reposition(SetOfNodes* set, int node, int repos_idx)
@@ -201,4 +208,47 @@ void IV_deepcopy(IndexedValue* dst, IndexedValue* src)
 {
 	dst->index = src->index;
 	dst->value = dst->value;
+}
+
+/* **************************************************************************************************
+*							TABU LIST
+************************************************************************************************** */
+
+TabuList* TABU_new(int nnodes, int tenure)
+{
+	// allocate tabu list
+	TabuList* tabu = NULL;	malloc_s(tabu, TabuList);
+
+	// assign tabu nodes and tenure
+	arr_malloc_s(tabu->tabu_nodes, nnodes, int);
+	// fill tabu with minimum integer time
+	for (int i = 0; i < nnodes; i++) tabu->tabu_nodes[i] = -1;
+	tabu->tenure = tenure;
+	tabu->now = 0;
+	tabu->nnodes = nnodes;
+
+	return tabu;
+}
+
+char TABU_istabu(TabuList* tabu, int node)
+{
+	if (tabu->tabu_nodes[node] < 0)	return 0;
+	else return (tabu->now - tabu->tabu_nodes[node]) <= tabu->tenure;
+		
+}
+
+void TABU_free(TabuList* tabu)
+{
+	free(tabu->tabu_nodes);
+	free(tabu);
+}
+
+void TABU_print(TabuList* tabu)
+{
+	printf("**** TABU LIST ****\n");
+	for (int i = 0; i < tabu->nnodes; i++)
+	{
+		if (TABU_istabu(tabu, i)) printf("%d ", i);
+	}
+	printf("\n");
 }

@@ -202,11 +202,12 @@ typedef struct
 	CPXLPptr lp;
 } CplexData;
 
+#define MAX_PERFLOGS 5
 typedef struct
 {
 	Instance* inst;
 	CplexData* cpx;
-	LinkedList* perflog;
+	LinkedList* perflog[MAX_PERFLOGS];
 } OptData;
 
 inline int using_cplex(OptData* optdata) { return optdata->cpx != NULL; }

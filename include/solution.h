@@ -64,6 +64,9 @@ for(int i = 0; i < (size); i++)\
 int solformat2num(SolFormat format);
 SolFormat solformat_collapse(SolFormat format);
 
+// ********************************** COMPUTE COSTS **********************************
+double compute_cost(int* chromo, Graph* g);
+
 // *********************************** CONVERSION ************************************
 // conversion methods for a feasable solution
 
@@ -71,6 +74,8 @@ int xstar2succ(double* xstar, int* succ, int nnodes);	// O(n^2) complexity
 int succ2xstar(int* succ, double* xstar, int nnodes);	// O(n) complexity
 int succ2chromo(int* succ, int* chromo, int nnodes);	// O(n) complexity
 int chromo2succ(int* chromo, int* succ, int nnodes);	// O(n) complexity
+int chromo2index(int* chromo, int* index, int nnodes);	// O(n) complexity
+
 int convert_solution(Solution* sol, SolFormat format);
 
 #define FORMAT2FORMAT(sol, f1, f2, result)\
@@ -112,6 +117,7 @@ char rem_edge_solution(Solution* sol, int i, int j, double cost);
 // ******************************* FEASABILITY CHECK *********************************
 // check functions
 char check_succ(int* succ, int nnodes);
+char check_chromo(int* chromo, int nnodes);
 
 // ********************************** GENERAL PURPOSE ********************************
 int count_active_edges(int size, double* xstar);

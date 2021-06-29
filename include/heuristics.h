@@ -56,6 +56,23 @@ typedef struct
 	int max_k;
 } VNSData;
 
+typedef struct
+{
+	int min_tenure;
+	int max_tenure;
+	int period;
+	int interm_levels;
+} TabuSearchData;
+
+typedef struct
+{
+	char crossover_variant;
+	int pool_size;
+	double elite_ratio;
+	double mutation_p;
+
+} GeneticAlgData;
+
 // ************************** CONSTRUCTIVE HEUR DATASTRUCTURES ***********************
 typedef struct
 {
@@ -95,6 +112,12 @@ typedef struct
 	int progress;
 } LocalbranchingData;
 
+typedef struct
+{
+	TabuList* tabu;
+	char allow_worsening;
+} Opt2MoveData;
+
 // ************************** SOLUTION HANDLING DATASTRUCTURES ***********************
 typedef struct
 {
@@ -120,7 +143,8 @@ void solve_heuristically(OptData* optdata);
 */
 void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data);
 void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data);
-
+void backbone_tabu_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data);
+void backbone_genetic_algorithm(OptData* optdata, Solution* sol, Heuristic* heur, void* data);
 
 // ***************************** CONSTRUCTIVE HEURISTICS *****************************
 // solution construction procedures which generate a starting point from which to

@@ -18,7 +18,8 @@ void decompose_heuristic_code(HeuristicCode* decomp, char* heuristic_code)
 	// start sections tokenization
 	section_token = strtok_u(heuristic_code, section_sep, &section_context);
 	// for each section
-	for (int s = 0; (s < HEUR_SECTIONS) && (section_token != NULL); s++)
+	int s = 0;
+	for (s = 0; (s < HEUR_SECTIONS) && (section_token != NULL); s++)
 	{
 		// extract method
 		decomp->methods[s] = section_token[0];
@@ -37,6 +38,8 @@ void decompose_heuristic_code(HeuristicCode* decomp, char* heuristic_code)
 		// next section token
 		section_token = strtok_u(NULL, section_sep, &section_context);
 	}
+	// iff missing some sections, set the method as 0
+	if (s < HEUR_SECTIONS) decomp->methods[s] = 0;
 }
 
 /* **************************************************************************************************
@@ -104,7 +107,9 @@ void solve_heuristically(OptData* optdata)
 	// if need to log progress during the heuristic, build a performance log
 	if (VERBOSITY >= LOGLVL_PLOTSOL)
 	{
-		optdata->perflog = LL_new();
+		optdata->perflog[0] = LL_new();
+		for (int i = 1; i < MAX_PERFLOGS; i++)
+			optdata->perflog[i] = NULL;
 	}
 
 	// resolve solution format problems (xstar, succ)
@@ -134,9 +139,16 @@ void solve_heuristically(OptData* optdata)
 	// if need to plot the progress during heuristic
 	if (VERBOSITY >= LOGLVL_PLOTSOL)
 	{
-		if (!LL_is_empty(optdata->perflog)) plot_heuristic_perflog(optdata->perflog);
-		LL_free(optdata->perflog);
-		optdata->perflog = NULL;
+		for (int i = 0; i < MAX_PERFLOGS; i++)
+		{
+			if (optdata->perflog[i] != NULL)
+			{
+				if (!LL_is_empty(optdata->perflog[i])) plot_heuristic_perflog(optdata->perflog[i]);
+				LL_free(optdata->perflog[i]);
+				optdata->perflog[i] = NULL;
+			}
+		}
+		
 	}
 
 	// **************************** CLEANUP ****************************
@@ -174,35 +186,27 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 	m = decomp_code.methods[s];
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Backbone method: %c", m);
 
+	// construct time
+	heur->construct_timelimit = atof(decomp_code.params[s][0]);
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "construct_time: %f", heur->construct_timelimit);
+
+	// refine time
+	heur->refine_timelimit = atof(decomp_code.params[s][1]);
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: %f", heur->refine_timelimit);
+
 	if (m == 'i')			// iterative local search
 	{
 		heur->backbone_heur = backbone_iter_local_search;
-
-		// construct time
-		heur->construct_timelimit = atof(decomp_code.params[s][0]);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "construct_time: %f", heur->construct_timelimit);
-
-		// refine time
-		heur->refine_timelimit = atof(decomp_code.params[s][1]);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: %f", heur->refine_timelimit);
 
 		// assign data
 		heur->backbone_data = NULL;
 		heur->backbone_sol_format = SOLFORMAT_XSTAR | SOLFORMAT_SUCC;
 		heur->to_timelimit = 0;
 	}
-	else if (m == 'v')		// iterative variable neighborhood search
+	else if (m == 'v')		// variable neighborhood search
 	{
 		heur->backbone_heur = backbone_var_neighborhood_search;
 		VNSData* data = NULL;	malloc_s(data, VNSData);
-
-		// construct time
-		heur->construct_timelimit = atof(decomp_code.params[s][0]);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "construct_time: %f", heur->construct_timelimit);
-
-		// refine time
-		heur->refine_timelimit = atof(decomp_code.params[s][1]);
-		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: %f", heur->refine_timelimit);
 
 		// max_k
 		data->max_k = atoi(decomp_code.params[s][2]);
@@ -213,6 +217,62 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 		heur->backbone_sol_format = SOLFORMAT_SUCC;
 		heur->to_timelimit = 1;
 	}
+	else if (m == 't')		// tabu search
+	{
+		heur->backbone_heur = backbone_tabu_search;
+		TabuSearchData* data = NULL;	malloc_s(data, TabuSearchData);
+
+		// min_tenure
+		data->min_tenure = atoi(decomp_code.params[s][2]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "min_tenure: %d", data->min_tenure);
+
+		// max_tenure
+		data->max_tenure = atoi(decomp_code.params[s][3]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "max_tenure: %d", data->max_tenure);
+
+		// period
+		data->period = atoi(decomp_code.params[s][4]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "period: %d", data->period);
+
+		// interm_levels
+		data->interm_levels = atoi(decomp_code.params[s][5]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "interm_levels: %d", data->interm_levels);
+
+		// assign data
+		heur->backbone_data = data;
+		heur->backbone_sol_format = SOLFORMAT_SUCC;
+		heur->to_timelimit = 1;
+	}
+	else if (m == 'g')		// genetic algorithm
+	{
+		heur->backbone_heur = backbone_genetic_algorithm;
+		GeneticAlgData* data = NULL;	malloc_s(data, GeneticAlgData);
+
+		// crossover_variant
+		data->crossover_variant = *decomp_code.params[s][2];
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "crossover_variant: %c", data->crossover_variant);
+
+		// pool_size
+		data->pool_size = atoi(decomp_code.params[s][3]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "pool_size: %d", data->pool_size);
+
+		// elite_ratio
+		data->elite_ratio = atof(decomp_code.params[s][4]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "elite_ratio: %f", data->elite_ratio);
+
+		// mutation_p
+		data->mutation_p = atof(decomp_code.params[s][5]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "mutation_p: %f", data->mutation_p);
+
+		// assign data
+		heur->backbone_data = data;
+		heur->construct_data = NULL;
+		heur->refine_data = NULL;
+		heur->backbone_sol_format = SOLFORMAT_CHROMO;
+		heur->construct_sol_format = SOLFORMAT_CHROMO;
+		heur->refine_sol_format = SOLFORMAT_CHROMO;
+		heur->to_timelimit = 1;
+	}
 	else
 	{
 		print_error_ext(ERR_HEUR_DECODE, "unknown backbone method: %c", m);
@@ -221,6 +281,7 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 	// ******************************* DECODE CONSTRUCT ******************************
 	s = HEUR_CONSTRUCT;
 	m = decomp_code.methods[s];
+	if (m == 0) return;
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Construct method: %c", m);
 
 	if (m == 's')			// construct through cplex solver
@@ -279,6 +340,7 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 	// ******************************** DECODE REFINE ********************************
 	s = HEUR_REFINE;
 	m = decomp_code.methods[s];
+	if (m == 0) return;
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Refine method: %c", m);
 
 	if (m == 'h')			// refine through hardfixing scheme
@@ -334,9 +396,12 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 	else if (m == '2')		// refine through 2-OPT moves
 	{
 		heur->refine_heur = refine_2opt;
+		Opt2MoveData* data = NULL;	malloc_s(data, Opt2MoveData);
+		data->tabu = NULL;
+		data->allow_worsening = 0;
 
 		// assign data
-		heur->refine_data = NULL;
+		heur->refine_data = data;
 		heur->refine_sol_format = SOLFORMAT_SUCC;
 	}
 	else
@@ -567,7 +632,7 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 	// log
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Construction done in %f sec.s", time_phase);
 	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Obj value after construction = %f", sol->cost);
-	if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog, time_passed, sol->cost);
+	if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, sol->cost);
 	if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, sol);
 
 	// ****************************** START ITERATIONS *******************************
@@ -596,7 +661,7 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 		// log
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] 1 iteration of refinement done in %f sec.s", time_phase);
 		log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Obj value after refinement = %f", sol->cost);
-		if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog, time_passed, sol->cost);
+		if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, sol->cost);
 		if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, sol);
 	}
 
@@ -640,7 +705,7 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 	// log
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Construction done in %f sec.s", time_phase);
 	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Obj value after construction = %f", sol->cost);
-	if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog, time_passed, sol->cost);
+	if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, sol->cost);
 	if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, sol);
 
 	// ****************************** START ITERATIONS *******************************
@@ -649,6 +714,137 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 
 	int epoch = 0;
 	int kick_k = 3;
+
+	// setup best and current solutions
+	Solution* best_sol = sol;
+	Solution st_curr_sol;
+	Solution* curr_sol = &st_curr_sol;
+	// initialize and copy best solution to the current solution
+	create_solution(curr_sol, best_sol->format, best_sol->nnodes);
+	deep_copy_solution(curr_sol, best_sol);
+
+	// iterate until time expires or the refining heuristic cannot find a better solution (local opt)
+	while (!time_limit_expired(inst) && (heur->to_timelimit || !sol->optimal))
+	{
+		// ***************************** REFINE SOLUTION *****************************
+		log_line_ext(VERBOSITY, LOGLVL_MSG, "************ STARTING EPOCH %d ************", epoch++);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS BEFORE REFINEMENT: %d", check_succ(curr_sol->succ, curr_sol->nnodes));
+		// convert solution to the refinement format
+		if (!convert_solution(curr_sol, heur->refine_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
+		// compute timelimit for refinement heuristic
+		timelimit = min(residual_time(inst), heur->refine_timelimit);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] 1 iteration of refinement should run for %f sec.s", timelimit);
+
+		// refine heuristic solution
+		t_start = second();
+		// *********** REFINE ***********
+		heur->refine_heur(optdata, curr_sol, heur->refine_data, timelimit);
+		// ******************************
+		time_phase = second() - t_start;
+		time_passed += time_phase;
+
+		// log
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS AFTER REFINEMENT: %d", check_succ(curr_sol->succ, curr_sol->nnodes));
+		if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_undirected(&inst->inst_graph, curr_sol);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] 1 iteration of refinement done in %f sec.s", time_phase);
+
+		// ***************************** CHECK SOLUTION ******************************
+		// convert solution to the refinement format
+		if (!convert_solution(curr_sol, heur->backbone_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
+		// check if current solution is the best until now, if so swap them
+		if (curr_sol->cost < best_sol->cost)
+		{
+			// save curr solution as the new best solution
+			deep_copy_solution(best_sol, curr_sol);
+			// log new best solution
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: New best solution found, cost = %f", best_sol->cost);
+			if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, best_sol->cost);
+			if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, best_sol);
+			// reset kick size
+			kick_k = 3;
+		}
+		else
+		{
+			// copy back the best solution into the current solution
+			deep_copy_solution(curr_sol, best_sol);
+		}
+
+		// ****************************** KICK SOLUTION ******************************
+		// if the current solution is in a local optimum
+		if (curr_sol->optimal)
+		{
+			// kick the solution in its k-opt neighborhood
+			kopt_kick(curr_sol, &inst->inst_graph, kick_k);
+
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Kicked solution in its %d-OPT neighborhood", kick_k);
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS AFTER K-OPT KICK: %d", check_succ(curr_sol->succ, curr_sol->nnodes));
+			if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_undirected(&inst->inst_graph, curr_sol);
+			// increase k
+			kick_k = min(kick_k+1, bbdata->max_k);
+		}
+	}
+
+	// free the other solution
+	free(curr_sol->succ); free(curr_sol->xstar); free(curr_sol->chromo);
+
+	if (sol->optimal) log_line(VERBOSITY, LOGLVL_INFO, "[INFO]: Local optimum was found!");
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Total number of epochs: %d", epoch);
+
+}
+
+/* **************************************************************************************************
+*					BACKBONE METHOD: TABU SEARCH
+*			- construct a starting solution
+*			- refine iteratively the solution, allowing worsening moves
+*			- impede going back to local minima by making "tabu" some moves
+************************************************************************************************** */
+void backbone_tabu_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data)
+{
+	// ******************************** SETUP ********************************
+	// unpack
+	Instance* inst = optdata->inst;
+	TabuSearchData* bbdata = (TabuSearchData*)data;
+
+	// startup solution and format it for construction
+	create_solution(sol, heur->construct_sol_format, inst->inst_graph.nnodes);
+
+	// ************************* CONSTRUCT STARTING SOLUTION *************************
+	double timelimit, time_passed = 0, time_phase, t_start;
+	// compute timelimit for constructive heuristic
+	timelimit = min(residual_time(inst), heur->construct_timelimit);
+	log_line(VERBOSITY, LOGLVL_INFO, "************ STARTING CONSTRUCTION PHASE ************");
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Construction should run for %f sec.s", timelimit);
+
+	// construct starting heuristic solution
+	t_start = second();
+	// *********** CONSTRUCT ***********
+	heur->construct_heur(optdata, sol, heur->construct_data, timelimit);
+	// *********************************
+	time_phase = second() - t_start;
+	time_passed += time_phase;
+
+	// log
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Construction done in %f sec.s", time_phase);
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Obj value after construction = %f", sol->cost);
+	if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, sol->cost);
+	if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, sol);
+
+	// ****************************** START ITERATIONS *******************************
+	// convert solution to the refinement format
+	if (!convert_solution(sol, heur->refine_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
+
+	int epoch = 0;
+
+	// create tabu list and assign it to the refinement data
+	TabuList* tabu = TABU_new(sol->nnodes, bbdata->min_tenure);
+	((Opt2MoveData*)heur->refine_data)->tabu = tabu;
+	// compute epochs to 
+	int tenure_halfperiod = (bbdata->period / 2);
+	int tenure_update_time = tenure_halfperiod / (bbdata->interm_levels + 2);
+	int tenure_change = (bbdata->max_tenure - bbdata->min_tenure) / (bbdata->interm_levels + 1);
+
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG]: halfperiod = %d; up_time = %d; change = %d",
+		tenure_halfperiod, tenure_update_time, tenure_change);
 
 	// setup best and current solutions
 	Solution* best_sol = sol;
@@ -693,34 +889,157 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 			deep_copy_solution(best_sol, curr_sol);
 			// log new best solution
 			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: New best solution found, cost = %f", best_sol->cost);
-			if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog, time_passed, best_sol->cost);
+			if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, best_sol->cost);
 			if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, best_sol);
-			// reset kick size
-			kick_k = 3;
 		}
 
-		// ****************************** KICK SOLUTION ******************************
-		// if the current solution is in a local optimum
+		// ****************************** UPDATE TABU VALUES ******************************
 		if (curr_sol->optimal)
 		{
-			// kick the solution in its k-opt neighborhood
-			kopt_kick(curr_sol, &inst->inst_graph, kick_k);
-
-			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Kicked solution in its %d-OPT neighborhood", kick_k);
-			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS AFTER K-OPT KICK: %d", check_succ(curr_sol->succ, curr_sol->nnodes));
-			if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) plot_tsp_solution_undirected(&inst->inst_graph, curr_sol);
-			// increase k
-			kick_k = min(kick_k+1, bbdata->max_k);
+			((Opt2MoveData*)heur->refine_data)->allow_worsening = 1;
+			log_line(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Found an optimal solution => allow a worsening move");
 		}
+
+		if (VERBOSITY >= LOGLVL_DEBUGPLOT_P) TABU_print(tabu);
+		if ((epoch+1) % tenure_halfperiod == 0)
+		{ 
+			// if hitting the half period, invert change
+			tenure_change = -tenure_change;
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Tenure peak reached: %d", tabu->tenure);
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Inverted tenure change to %d", tenure_change);
+		}
+		else if ((epoch + 1) % tenure_update_time == 0)
+		{
+			int newtenure = min(bbdata->max_tenure, max(bbdata->min_tenure, tabu->tenure + tenure_change));
+			TABU_set_tenure(tabu, newtenure);
+			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Tenure set to: %d", tabu->tenure);
+		}
+		
 	}
 
-	// copy the best known solution into the final solution (freeing what is not needed)
+	// free tabu list
+	TABU_free(tabu);
+
 	// free the other solution
 	free(curr_sol->succ); free(curr_sol->xstar); free(curr_sol->chromo);
 
 	if (sol->optimal) log_line(VERBOSITY, LOGLVL_INFO, "[INFO]: Local optimum was found!");
 	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Total number of epochs: %d", epoch);
 
+}
+
+/* **************************************************************************************************
+*					BACKBONE METHOD: GENETIC ALGORITHM
+*			- produce a population of random feasable solutions
+*			- generate new solutions through a mating and mutation process
+************************************************************************************************** */
+void backbone_genetic_algorithm(OptData* optdata, Solution* sol, Heuristic* heur, void* data)
+{
+	// ************************************ SETUP ************************************
+	// add a log to account for averages
+	optdata->perflog[1] = LL_new();
+	
+	// unpack
+	Instance* inst = optdata->inst;
+	Graph* g = &inst->inst_graph;
+	GeneticAlgData* bbdata = (GeneticAlgData*)data;
+
+	// startup solution and format it for chromosomes
+	create_solution(sol, SOLFORMAT_CHROMO, g->nnodes);
+
+	// compute parameters
+	int pool_size = bbdata->pool_size;
+	int elites_size = (int)(pool_size * bbdata->elite_ratio);
+	double mutation_p = bbdata->mutation_p;
+
+	void (*crossover)(int*, int*, int*, int) = NULL;
+	switch (bbdata->crossover_variant)
+	{
+	case 'a':
+		crossover = crossover_aex;
+		break;
+	case 'p':
+		crossover = crossover_pmx;
+		break;
+	case 'm':
+		crossover = crossover_mix;
+		break;
+	default:
+		print_error_ext(ERR_HEUR_CONSTR_PARAM, "variant, got  %c, should be a/p/m", bbdata->crossover_variant);
+	}
+
+	// ***************************** INITIAL POPULATION ******************************
+	// allocate population
+	Population* pop = POP_new(bbdata->pool_size, elites_size, g->nnodes);
+	double timelimit, time_passed = 0, time_phase, t_start;
+	// compute timelimit for constructive heuristic
+	timelimit = min(residual_time(inst), heur->construct_timelimit);
+	log_line(VERBOSITY, LOGLVL_INFO, "************ STARTING POPULATION PHASE ************");
+
+	// construct starting heuristic solution
+	t_start = second();
+	// *********** POPULATE ************
+	populate(pop, g);
+	// *********************************
+	time_phase = second() - t_start;
+	time_passed += time_phase;
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] population done in %f sec.s", time_phase);
+
+	// compute statistics
+	double best_fitness, avg_fitness;
+	best_fitness = POP_fitness_best(pop); avg_fitness = POP_fitness_avg(pop);
+
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Best fitness = %f", best_fitness);
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Average fitness = %f", avg_fitness);
+	if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, best_fitness);
+	if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[1], time_passed, avg_fitness);
+
+	// ****************************** START ITERATIONS *******************************
+	int epoch = 0;
+	double long_range_prev_cost = INFINITY;
+
+	while (!time_limit_expired(inst))
+	{
+		log_line_ext(VERBOSITY, LOGLVL_MSG, "************ GENERATION %d ************", epoch++);
+
+		t_start = second();
+		// *********** NEW GENERATION ***********
+		new_generation(pop, crossover, g, mutation_p, residual_time(inst));
+		// **************************************
+		time_phase = second() - t_start;
+		time_passed += time_phase;
+
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] new generation in %f sec.s", time_phase);
+
+		// compute statistics
+		best_fitness = POP_fitness_best(pop); avg_fitness = POP_fitness_avg(pop);
+
+		log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Best fitness = %f", best_fitness);
+		log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Average fitness = %f", avg_fitness);
+		if (VERBOSITY >= LOGLVL_PLOTSOL && (epoch % 100 == 0)) LL_add_value(optdata->perflog[0], time_passed, best_fitness);
+		if (VERBOSITY >= LOGLVL_PLOTSOL && (epoch % 100 == 0)) LL_add_value(optdata->perflog[1], time_passed, avg_fitness);
+	}
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Total number of generations: %d", epoch);
+
+
+	double delta = remove_crossings_c(pop->champion->chromo, g);
+	if (delta < 0)
+	{
+		pop->champion->cost += delta;
+		log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Applied final 2-opt refinement, improved by %f", delta);
+	}
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Final fitness of champion: %f", POP_fitness_best(pop));
+
+	// set champion as solution
+	Specimen* champion = POP_getchampion(pop);
+	sol->chromo = champion->chromo;
+	champion->chromo = NULL;	// to avoid freeing the solution chromosome
+	sol->cost = champion->cost;
+	convert_solution(sol, SOLFORMAT_SUCC);
+
+	// free datastructure
+	POP_free(pop);
+	
 }
 
 /* **************************************************************************************************
@@ -1319,24 +1638,38 @@ void refine_2opt(OptData* optdata, Solution* sol, void* data, double timelim)
 {
 	// start time
 	double start_time = second();
+
+	Opt2MoveData* rfn_data = (Opt2MoveData*)data;
+	TabuList* tabu = rfn_data->tabu;
 	double delta;
 
 	do
 	{
 		// compute move
-		delta = move_2opt(sol->succ, &optdata->inst->inst_graph, 0);
+		delta = move_2opt(sol->succ, &optdata->inst->inst_graph, tabu, rfn_data->allow_worsening);
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Solution cost changed by: %f through a 2-OPT move", delta);
 		// change cost
 		sol->cost += delta;
 
-	} while (second() - start_time < timelim && delta < 0);
+		if (using_tabu(tabu) && !(delta >= 0 && !rfn_data->allow_worsening)) TABU_advance(tabu);
 
-	// if not improved
-	if (delta >= 0)
+		// allow 1 worsening movement if it was already allowed
+		if (delta > 0)
+		{
+			log_line(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Allowed a worsening move");
+			delta = -1;
+		}
+
+		rfn_data->allow_worsening = 0;
+
+	} while ((second() - start_time < timelim) && (delta < 0));
+
+	// if plateau and worsening is now allowed, solution is local optimum
+	if (delta == 0 && !rfn_data->allow_worsening)
 	{
 		// mark solution as local optimum
 		sol->optimal = 1;
-		log_line(VERBOSITY, LOGLVL_INFO, "[INFO] Local minimum in 2-OPT neighborhood reached");	
+		log_line(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Local minimum in 2-OPT neighborhood reached");	
 	}
 
 }

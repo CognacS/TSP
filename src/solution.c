@@ -180,6 +180,20 @@ SolFormat solformat_collapse(SolFormat format)
 }
 
 /* **************************************************************************************************
+*							COMPUTE COSTS
+************************************************************************************************** */
+double compute_cost(int* chromo, Graph* g)
+{
+	double cost = 0;
+	for (int i = 0; i < g->nnodes - 1; i++)
+	{
+		cost += dist(g, chromo[i], chromo[i + 1]);
+	}
+	cost += dist(g, chromo[g->nnodes-1], chromo[0]);
+	return cost;
+}
+
+/* **************************************************************************************************
 *							CONVERSION
 ************************************************************************************************** */
 int xstar2succ(double* xstar, int* succ, int nnodes)
@@ -259,9 +273,10 @@ int succ2chromo(int* succ, int* chromo, int nnodes)
 	return active_edges == nnodes;
 }
 
-int chromo2succ(int* succ, int* chromo, int nnodes)
+int chromo2succ(int* chromo, int* succ, int nnodes)
 {
 	int active_edges = 0;
+	int node = 0;
 	for (int i = 0; i < nnodes - 1; i++)
 	{
 		succ[chromo[i]] = chromo[i + 1];
@@ -269,6 +284,14 @@ int chromo2succ(int* succ, int* chromo, int nnodes)
 	succ[chromo[nnodes - 1]] = chromo[0];
 
 	return active_edges == nnodes;
+}
+
+int chromo2index(int* chromo, int* index, int nnodes)
+{
+	for (int i = 0; i < nnodes; i++)
+	{
+		index[chromo[i]] = i;
+	}
 }
 
 
@@ -390,6 +413,33 @@ char check_succ(int* succ, int nnodes)
 		if (correct) curr = succ[curr];
 	}
 	return correct && curr == 0;
+}
+
+char check_chromo(int* chromo, int nnodes)
+{
+	char correct = 1;
+	char* visited = NULL; calloc_s(visited, nnodes, char);
+	char err1, err2;
+	// check repetitions
+	for (int i = 0; (i < nnodes) && correct; i++)
+	{
+		err1 = visited[chromo[i]];
+		err2 = chromo[i] < 0 || chromo[i] >= nnodes;
+		if (err1) log_line_ext(VERBOSITY, LOGLVL_WARN, "[WARN] node %d at pos %d already visited!", chromo[i], i);
+		if (err2) log_line_ext(VERBOSITY, LOGLVL_WARN, "[WARN] node %d at pos %dout of bound!", chromo[i], i);
+
+		correct = !(err1 || err2);
+		visited[chromo[i]] = 1;
+	}
+	// check tour passing through all nodes
+	for (int i = 0; (i < nnodes) && correct; i++)
+	{
+		correct = visited[chromo[i]];
+		if (!correct) log_line_ext(VERBOSITY, LOGLVL_WARN, "[WARN] node %d at pos %d was not visited!", chromo[i], i);
+	}
+
+	free(visited);
+	return correct;
 }
 
 /* **************************************************************************************************

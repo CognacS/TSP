@@ -57,6 +57,7 @@ inline char SETN_isempty(SetOfNodes* set) { return set->curr_size == 0; }
 inline int SETN_get(SetOfNodes* set, int idx) { return set->nodes[idx]; }	// O(1)
 char SETN_add(SetOfNodes* set, int node);									// O(1)
 char SETN_remove(SetOfNodes* set, int node);								// O(1)
+int SETN_rand_node(SetOfNodes* set);										// O(1)
 char SETN_reposition(SetOfNodes* set, int node, int repos_idx);				// O(1)
 void SETN_free(SetOfNodes* set);
 void SETN_deepcopy(SetOfNodes* dst, SetOfNodes* src);						// O(n)
@@ -89,5 +90,27 @@ inline IndexedValue OIA_best(IndexedValue* oiarr, int size) { return oiarr[size 
 IndexedValue OIA_choose(IndexedValue* oiarr, int size, char includebest);
 
 void IV_deepcopy(IndexedValue* dst, IndexedValue* src);
+
+/* ***********************************************************************************
+*					TABU LIST STRUCTURE DEFINITION
+*********************************************************************************** */
+typedef struct
+{
+	int* tabu_nodes;
+	int tenure;
+	int now;
+	int nnodes;
+
+} TabuList;
+
+TabuList* TABU_new(int nnodes, int tenure);
+char TABU_istabu(TabuList* tabu, int node);
+inline void TABU_update(TabuList* tabu, int node) { tabu->tabu_nodes[node] = tabu->now; }
+inline void TABU_advance(TabuList* tabu) { tabu->now++; }
+inline void TABU_set_tenure(TabuList* tabu, int newtenure) { tabu->tenure = newtenure; }
+void TABU_free(TabuList* tabu);
+void TABU_print(TabuList* tabu);
+
+inline char using_tabu(TabuList* tabu) { return tabu != NULL; }
 
 #endif
