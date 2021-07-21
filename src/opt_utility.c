@@ -171,11 +171,15 @@ double remove_crossings(int* succ, Graph* g)
 	return delta_sum;
 }
 
-double remove_crossings_c(int* chromo, Graph* g)
+double remove_crossings_c(int* chromo, Graph* g, int howmuch)
 {
 	double delta_sum = 0;
 	double delta;
-	while ((delta = move_2opt_c(chromo, g)) < 0) delta_sum += delta;
+	int times = 0;
+	while ((delta = move_2opt_c(chromo, g)) < 0 && (times < howmuch))
+	{
+		delta_sum += delta; times++;
+	}
 	return delta_sum;
 }
 
@@ -321,16 +325,10 @@ void merge_pops(Population* pop_dst, Population* pop_other)
 	Specimen t;
 	int elite_size = pop_dst->elite_size;
 
-	// check that the best specimen from the other population is
-	// on the elite side of the population
-	size_t champ_pos = pop_other->champion - pop_other->pool;
-	if (champ_pos >= elite_size)
-	{
-		swap_ext(pop_other->pool[0], *pop_other->champion, t);
-		pop_other->champion = pop_other->pool;
-	}
+	// do a full reorder of the offsprings
+	quicksort_elites(pop_other, 0, pop_other->pool_size-1);
+	pop_other->champion = pop_other->pool;
 
-	quicksort_elites(pop_other, 0, elite_size - 1);
 	// replace best elements of other population with worst elements
 	// of the destination (on the elite side)
 	int qty_replace;
@@ -351,7 +349,10 @@ void merge_pops(Population* pop_dst, Population* pop_other)
 	for (int i = elite_size; i < pop_dst->pool_size; i++)
 	{
 		// 50/50 chance of retaining or inserting new element on the random side of pop
-		if (rand_int(2) == 1) swap_ext(pop_other->pool[i], pop_dst->pool[i], t);
+		if (rand_int(3) == 0) {
+			int pos = pop_other->elite_size + rand_int(pop_other->pool_size - pop_other->elite_size);
+			swap_ext(pop_other->pool[i], pop_dst->pool[pos], t);
+		}
 	}
 
 }
@@ -406,8 +407,8 @@ void populate(Population* pop, Graph* g)
 		swap_ext(pop->pool[0], *pop->champion, t);
 		pop->champion = pop->pool;
 	}
-	// final sort of elites
-	quicksort_elites(pop, 0, pop->elite_size - 1);
+	// final full sort
+	quicksort_elites(pop, 0, pop->pool_size-1);
 	pop->champion = pop->pool;
 
 	free(remaining_nodes);
@@ -440,6 +441,11 @@ void new_generation(Population* pop, void (*crossover)(int*, int*, int*, int),
 		// mutate
 		if (random() < mutation_p)
 			mutation_rms(child->chromo, pop->nnodes);
+
+		if (random() < 0.001)
+		{
+			double delta = remove_crossings_c(child->chromo, g, 10);
+		}
 
 		// check correctness
 		log_line_ext(VERBOSITY, LOGLVL_PEDANTIC, "CORRECTNESS AFTER MUTATION: %d", check_chromo(child->chromo, pop->nnodes));

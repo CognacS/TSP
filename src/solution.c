@@ -203,7 +203,7 @@ int xstar2succ(double* xstar, int* succ, int nnodes)
 	// identify tour of FEASABLE solution
 	int curr = 0; char feasable = 1;
 	int active_edges = 0;
-	for (int i = 0; i < nnodes - 1 && feasable; i++)
+	for (int i = 0; (i < nnodes - 1) && feasable; i++)
 	{
 		visited[curr] = 1;
 		int h;
@@ -222,9 +222,13 @@ int xstar2succ(double* xstar, int* succ, int nnodes)
 			}
 		}
 	}
+
 	// set last one's successor as the start 0 if feasable!
 	feasable = feasable && is_one(xstar[xpos(curr, 0, nnodes)]);
-	if (feasable) succ[curr] = 0;
+	if (feasable) {
+		succ[curr] = 0;
+		active_edges++;
+	}
 
 	free(visited);
 	return feasable && active_edges == nnodes;
@@ -292,6 +296,7 @@ int chromo2index(int* chromo, int* index, int nnodes)
 	{
 		index[chromo[i]] = i;
 	}
+	return 1;
 }
 
 

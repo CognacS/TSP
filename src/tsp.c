@@ -13,14 +13,16 @@ void print_params(Params* inst_p)
 		"\tbatch_file = %s\n"
 		"\trandomseed = %d\n"
 		"\tcutoff = %f\n"
-		"\tmax_nodes = %d\n",
+		"\tmax_nodes = %d\n"
+		"\theuristic_code = %s\n",
 		inst_p->model_type,
 		inst_p->timelimit,
 		inst_p->input_file,
 		inst_p->batch_file,
 		inst_p->randomseed,
 		inst_p->cutoff,
-		inst_p->max_nodes
+		inst_p->max_nodes,
+		inst_p->heuristic_code
 	);
 }
 

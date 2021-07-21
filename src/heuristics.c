@@ -201,7 +201,7 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 		// assign data
 		heur->backbone_data = NULL;
 		heur->backbone_sol_format = SOLFORMAT_XSTAR | SOLFORMAT_SUCC;
-		heur->to_timelimit = 0;
+		heur->to_timelimit = 1;
 	}
 	else if (m == 'v')		// variable neighborhood search
 	{
@@ -366,6 +366,7 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 		// assign data
 		data->rounds_nonimprove = 0;
 		data->progress = 0;
+		data->num_values = HEUR_HARDFIX_VALUES;
 		heur->refine_data = data;
 		heur->requires_cplex = 1;
 		heur->refine_sol_format = SOLFORMAT_XSTAR;
@@ -383,12 +384,37 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 		for (int i = 0; i < HEUR_LOCALBRANCH_VALUES; i++)
 		{
 			data->values[i] = atoi(decomp_code.params[s][1 + i]);
-			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "values[%d]: %d", i, data->values[i]);
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "values[%d]: %f", i, data->values[i]);
 		}
 
 		// assign data
 		data->rounds_nonimprove = 0;
 		data->progress = 0;
+		data->num_values = HEUR_LOCALBRANCH_VALUES;
+		heur->refine_data = data;
+		heur->requires_cplex = 1;
+		heur->refine_sol_format = SOLFORMAT_XSTAR;
+	}
+	else if (m == 'm')		// refine through a mix of hardfix and local branching
+	{
+		heur->refine_heur = refine_mixhardsoft;
+		MixHardSoftData* data = NULL;	malloc_s(data, MixHardSoftData);
+
+		// max_rounds
+		data->max_rounds = atoi(decomp_code.params[s][0]);
+		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "max_rounds: %d", data->max_rounds);
+
+		// values
+		for (int i = 0; i < HEUR_MIXHARDSOFT_VALUES; i++)
+		{
+			data->values[i] = atof(decomp_code.params[s][1 + i]);
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "values[%d]: %f", i, data->values[i]);
+		}
+
+		// assign data
+		data->rounds_nonimprove = 0;
+		data->progress = 0;
+		data->num_values = HEUR_MIXHARDSOFT_VALUES;
 		heur->refine_data = data;
 		heur->requires_cplex = 1;
 		heur->refine_sol_format = SOLFORMAT_XSTAR;
@@ -625,6 +651,12 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 	t_start = second();
 	// *********** CONSTRUCT ***********
 	heur->construct_heur(optdata, sol, heur->construct_data, timelimit);
+	if (time_limit_expired(inst))
+	{
+		log_line(VERBOSITY, LOGLVL_WARN, "[WARN] Could not construct a starting solution, returning without a result");
+		sol->cost = INFINITY;
+		return;
+	}
 	// *********************************
 	time_phase = second() - t_start;
 	time_passed += time_phase;
@@ -647,7 +679,7 @@ void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur
 		// ***************************** REFINE SOLUTION *****************************
 		// compute timelimit for refinement heuristic
 		timelimit = min(residual_time(inst), heur->refine_timelimit);
-		log_line_ext(VERBOSITY, LOGLVL_MSG, "************ STARTING EPOCH %d ************", epoch++);
+		log_line_ext(VERBOSITY, LOGLVL_INFO, "************ STARTING EPOCH %d ************", epoch++);
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] 1 iteration of refinement should run for %f sec.s", timelimit);
 
 		// refine heuristic solution
@@ -727,7 +759,7 @@ void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic
 	while (!time_limit_expired(inst) && (heur->to_timelimit || !sol->optimal))
 	{
 		// ***************************** REFINE SOLUTION *****************************
-		log_line_ext(VERBOSITY, LOGLVL_MSG, "************ STARTING EPOCH %d ************", epoch++);
+		log_line_ext(VERBOSITY, LOGLVL_INFO, "************ STARTING EPOCH %d ************", epoch++);
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS BEFORE REFINEMENT: %d", check_succ(curr_sol->succ, curr_sol->nnodes));
 		// convert solution to the refinement format
 		if (!convert_solution(curr_sol, heur->refine_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
@@ -838,7 +870,7 @@ void backbone_tabu_search(OptData* optdata, Solution* sol, Heuristic* heur, void
 	// create tabu list and assign it to the refinement data
 	TabuList* tabu = TABU_new(sol->nnodes, bbdata->min_tenure);
 	((Opt2MoveData*)heur->refine_data)->tabu = tabu;
-	// compute epochs to 
+	// compute parameters
 	int tenure_halfperiod = (bbdata->period / 2);
 	int tenure_update_time = tenure_halfperiod / (bbdata->interm_levels + 2);
 	int tenure_change = (bbdata->max_tenure - bbdata->min_tenure) / (bbdata->interm_levels + 1);
@@ -858,7 +890,7 @@ void backbone_tabu_search(OptData* optdata, Solution* sol, Heuristic* heur, void
 	while (!time_limit_expired(inst) && (heur->to_timelimit || !sol->optimal))
 	{
 		// ***************************** REFINE SOLUTION *****************************
-		log_line_ext(VERBOSITY, LOGLVL_MSG, "************ STARTING EPOCH %d ************", epoch++);
+		log_line_ext(VERBOSITY, LOGLVL_INFO, "************ STARTING EPOCH %d ************", epoch++);
 		log_line_ext(VERBOSITY, LOGLVL_DEBUG, "CORRECTNESS BEFORE REFINEMENT: %d", check_succ(curr_sol->succ, curr_sol->nnodes));
 		// // convert solution to the refinement format
 		if (!convert_solution(curr_sol, heur->refine_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
@@ -910,9 +942,11 @@ void backbone_tabu_search(OptData* optdata, Solution* sol, Heuristic* heur, void
 		}
 		else if ((epoch + 1) % tenure_update_time == 0)
 		{
+			if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, (double)tabu->tenure * 10);
 			int newtenure = min(bbdata->max_tenure, max(bbdata->min_tenure, tabu->tenure + tenure_change));
 			TABU_set_tenure(tabu, newtenure);
 			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Tenure set to: %d", tabu->tenure);
+			if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, (double)tabu->tenure * 10);
 		}
 		
 	}
@@ -1000,7 +1034,7 @@ void backbone_genetic_algorithm(OptData* optdata, Solution* sol, Heuristic* heur
 
 	while (!time_limit_expired(inst))
 	{
-		log_line_ext(VERBOSITY, LOGLVL_MSG, "************ GENERATION %d ************", epoch++);
+		log_line_ext(VERBOSITY, LOGLVL_INFO, "************ GENERATION %d ************", epoch++);
 
 		t_start = second();
 		// *********** NEW GENERATION ***********
@@ -1016,18 +1050,11 @@ void backbone_genetic_algorithm(OptData* optdata, Solution* sol, Heuristic* heur
 
 		log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Best fitness = %f", best_fitness);
 		log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Average fitness = %f", avg_fitness);
+		//log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Entropy = %f", POP_entropy(pop));
 		if (VERBOSITY >= LOGLVL_PLOTSOL && (epoch % 100 == 0)) LL_add_value(optdata->perflog[0], time_passed, best_fitness);
 		if (VERBOSITY >= LOGLVL_PLOTSOL && (epoch % 100 == 0)) LL_add_value(optdata->perflog[1], time_passed, avg_fitness);
 	}
 	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Total number of generations: %d", epoch);
-
-
-	double delta = remove_crossings_c(pop->champion->chromo, g);
-	if (delta < 0)
-	{
-		pop->champion->cost += delta;
-		log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Applied final 2-opt refinement, improved by %f", delta);
-	}
 	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Final fitness of champion: %f", POP_fitness_best(pop));
 
 	// set champion as solution
@@ -1055,19 +1082,26 @@ void construct_tspsolver(OptData* optdata, Solution* sol, void* data, double tim
 	CPXLPptr lp = optdata->cpx->lp;
 
 	// ********************** OPTIMIZE **********************
-	// solve the problem with the callback
-	cpx_timelimit(optdata, timelim);
-	CPXsetintparam(env, CPX_PARAM_MIPEMPHASIS, CPX_MIPEMPHASIS_HEURISTIC);
-	int error;
-	if (error = CPXmipopt(env, lp))
-		print_error_ext(ERR_CPLEX, "CPXmipopt() TSP solver, CPX error: %d", error);
-	// extract stat and look for optimality
-	int stat = CPXgetstat(env, lp);
-	sol->optimal = stat == CPXMIP_OPTIMAL;
+	int solution_found = 0;
+	while (!solution_found && !time_limit_expired(inst))
+	{
+		// solve the problem with the callback
+		cpx_timelimit(optdata, timelim);
+		CPXsetintparam(env, CPX_PARAM_MIPEMPHASIS, CPX_MIPEMPHASIS_HEURISTIC);
+		int error;
+		if (error = CPXmipopt(env, lp))
+			print_error_ext(ERR_CPLEX, "CPXmipopt() TSP solver, CPX error: %d", error);
+		// extract stat and look for optimality
+		int stat = CPXgetstat(env, lp);
+		solution_found = stat != CPXMIP_TIME_LIM_INFEAS;
+		sol->optimal = stat == CPXMIP_OPTIMAL;
+		if (!solution_found) log_line(VERBOSITY, LOGLVL_INFO, "[INFO] No integer solution found, retrying");
+		timelim *= 1.5;
+	}
 
 	// ********************** EXTRACT **********************
 	// get the optimal solution
-	cpx_extract_sol_obj(optdata, sol, "TSP solver");
+	if (solution_found) cpx_extract_sol_obj(optdata, sol, "TSP solver");
 
 }
 
@@ -1321,6 +1355,7 @@ void refine_hardfixing(OptData* optdata, Solution* sol, void* data, double timel
 	char variant = rfn_data->variant;
 	double* values = rfn_data->values;
 	int progress = rfn_data->progress;
+	int num_values = rfn_data->num_values;
 
 	// extract data
 	int nnodes = sol->nnodes;
@@ -1461,9 +1496,9 @@ void refine_hardfixing(OptData* optdata, Solution* sol, void* data, double timel
 			if (variant == 's')
 			{
 				// if patience ran out and progress is ended, make it optimal
-				if (rfn_data->progress == HEUR_HARDFIX_VALUES - 1) sol->optimal = 1;
+				if (rfn_data->progress == num_values - 1) sol->optimal = 1;
 				// increase progress in schedule (capped)
-				rfn_data->progress = min(progress + 1, HEUR_HARDFIX_VALUES - 1);
+				rfn_data->progress = min(progress + 1, num_values - 1);
 				log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Hardfix schedule progress to %d", rfn_data->progress);
 
 			}
@@ -1533,8 +1568,9 @@ void refine_localbranching(OptData* optdata, Solution* sol, void* data, double t
 
 	// unpack rfndata
 	LocalbranchingData* rfn_data = (LocalbranchingData*)data;
-	int* values = rfn_data->values;
+	double* values = rfn_data->values;
 	int progress = rfn_data->progress;
+	int num_values = rfn_data->num_values;
 
 	// extract data
 	int nnodes = sol->nnodes;
@@ -1544,7 +1580,7 @@ void refine_localbranching(OptData* optdata, Solution* sol, void* data, double t
 	int ncols = inst->inst_model.ncols;
 
 	// extract number k of edges to replace
-	int k_replace = values[progress];
+	int k_replace = (int)values[progress];
 	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] %d free variables", k_replace);
 
 	// ******************** BUILD CONSTRAINT FOR K-OPT NEIGHBORHOOD ******************
@@ -1605,9 +1641,9 @@ void refine_localbranching(OptData* optdata, Solution* sol, void* data, double t
 			rfn_data->rounds_nonimprove = 0;
 
 			// if patience ran out and progress is ended, make it optimal
-			if (rfn_data->progress == HEUR_LOCALBRANCH_VALUES - 1) sol->optimal = 1;
+			if (rfn_data->progress == num_values - 1) sol->optimal = 1;
 			// increase progress in schedule (capped)
-			rfn_data->progress = min(progress + 1, HEUR_LOCALBRANCH_VALUES - 1);
+			rfn_data->progress = min(progress + 1, num_values - 1);
 			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Local branching schedule progress to %d", rfn_data->progress);
 
 		}
@@ -1628,6 +1664,29 @@ void refine_localbranching(OptData* optdata, Solution* sol, void* data, double t
 	free(index);
 	free(value);
 
+}
+
+/* **************************************************************************************************
+*					REFINING HEURISTIC: MIX OF HARDFIXING AND LOCAL BRANCHING
+*			- schedule whether to use hardfixing (first phases) or local branching (in the end)
+************************************************************************************************** */
+void refine_mixhardsoft(OptData* optdata, Solution* sol, void* data, double timelim)
+{
+
+	// unpack rfndata
+	MixHardSoftData* rfn_data = (MixHardSoftData*)data;
+	int progress = rfn_data->progress;
+	//printf("%d,%d,%d,%d\n", rfn_data->num_values, rfn_data->rounds_nonimprove, rfn_data->max_rounds, rfn_data->progress);
+
+	if (progress < HEUR_MIXHARDSOFT_VALUES / 2.0)
+	{
+		rfn_data->variant = 's';
+		refine_hardfixing(optdata, sol, data, timelim);
+	}
+	else
+	{
+		refine_localbranching(optdata, sol, data, timelim);
+	}
 }
 
 /* **************************************************************************************************

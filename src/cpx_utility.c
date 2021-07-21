@@ -94,7 +94,6 @@ void cpx_setup_cplex(OptData* optdata)
 		CPXsetintparam(cpx->env, CPXPARAM_MIP_Display, 5);
 	}
 
-	// setup time limit
 	cpx_timelimit(optdata, p->timelimit);
 }
 
@@ -173,5 +172,4 @@ void cpx_timelimit(OptData* optdata, double timelimit)
 	double computed_timelimit = min(residual_time, timelimit);
 	CPXsetintparam(optdata->cpx->env, CPX_PARAM_CLOCKTYPE, 2);
 	CPXsetdblparam(optdata->cpx->env, CPX_PARAM_TILIM, computed_timelimit);	// real time
-	CPXsetdblparam(optdata->cpx->env, CPX_PARAM_DETTILIM, TICKS_PER_SECOND * computed_timelimit);	// ticks
 }

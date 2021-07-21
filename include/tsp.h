@@ -8,12 +8,6 @@
 #include "tokens.h"
 #include "chrono.h"
 #include "datastructs.h"
-
-/* ***********************************************************************************
-*						GENERAL CONSTANTS
-*********************************************************************************** */
-
-#define TICKS_PER_SECOND 	  1000.0  	// cplex's ticks on Intel Core i7 quadcore @2.3GHZ
                                  
 /* ***********************************************************************************
 *						INSTANCE PARAMETERS SECTION

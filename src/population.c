@@ -66,6 +66,33 @@ double POP_fitness_best(Population* pop)
 	else return INFINITY;
 }
 
+double POP_entropy(Population* pop)
+{
+	int nnodes = pop->nnodes;
+	int edges = complete_graph_edges(nnodes);
+	int* freqs = NULL; calloc_s(freqs, edges, int);
+	
+	for (int i = 0; i < pop->pool_size; i++)
+	{
+		int* att_chromo = pop->pool[i].chromo;
+		for (int j = 0; j <nnodes-1; j++)
+		{
+			freqs[xpos(att_chromo[j], att_chromo[j + 1], nnodes)]++;
+		}
+		freqs[xpos(att_chromo[0], att_chromo[nnodes-1], nnodes)]++;
+	}
+
+	double entropy = 0;
+	double prob;
+	for (int i = 0; i < edges; i++)
+	{
+		prob = (double)freqs[i] / pop->pool_size;
+		if (prob > 0) entropy -= prob * log2(prob);
+	}
+	free(freqs);
+	return entropy;
+}
+
 /* **************************************************************************************************
 *							SPECIMEN CHOICE
 ************************************************************************************************** */
@@ -99,6 +126,7 @@ Specimen* POP_spec_tournament(Population* pop)
 
 Specimen* POP_choose(Population* pop)
 {
+	//return POP_spec_choose_rand(pop);
 	return POP_spec_tournament(pop);
 }
 

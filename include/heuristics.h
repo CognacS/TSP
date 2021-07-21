@@ -23,6 +23,31 @@ typedef struct
 
 } HeuristicCode;
 
+/**
+* Decompose heuristic strings using the following structure:
+* B(...,...)C(...,...)R(...,...)
+* ##### B = BACKBONE HEURISTICS #####
+* - iterative local search:			i(construct_timelim,refine_timelim)
+* - variable neighborhood search:	v(//,//,maxkick_k)
+* - tabu search:					t(//,//,min_tenure,max_tenure,period,intermediate_levels)
+* - genetic algorithm:				g(//,//,crossover_variant,pool_size,elite_ratio,mutation_prob)
+*	> crossover variants = {aex: a, pmx: p, mix: m}
+* ##### C = CONSTRUCTIVE HEURISTICS #####
+* - cplex tsp solver:				s(,)
+* - greedy construction:			g(0,any)
+* - greedy construction (GRASP):	g(p_deviation,candidate_pool_size)
+* - extra mileage ins.:				e(0,any,variant)
+* - extra mileage ins. (GRASP):		e(p_deviation,candidate_pool_size,variant)
+*	> extramil variants = {hull: h, random edge: r, furthest nodes: f}
+* ##### R = REFINING HEURISTICS #####
+* - hard fixing:					h(variant,max_rounds_noimprovement,values[5])
+*	> variants = {scheduled[v0,v1,v2,v3,v4]: s, fixed[v0,...]: f, uniform[v0,v1,...]: u}
+* - local branching:				l(max_rounds_noimprovement,values[4])
+*	> only scheduled
+* - mix of hard fix and local br.:	m(max_rounds_noimprovement,values[6])
+*	> first 3 values are for scheduled hard fixing, last 3 for local branching
+* - 2-OPT iterative refinement:		2(,)						
+*/
 void decompose_heuristic_code(HeuristicCode* decomp, char* heuristic_code);
 
 // ****************************** HEURISTIC DATASTRUCTURE ****************************
@@ -96,21 +121,34 @@ typedef struct
 typedef struct
 {
 	char variant;
-	double values[HEUR_HARDFIX_VALUES];
+	int num_values;
 	int rounds_nonimprove;
 	int max_rounds;
 	int progress;
+	double values[HEUR_HARDFIX_VALUES];
 } HardfixingData;
 
 #define HEUR_LOCALBRANCH_VALUES 4
 typedef struct
 {
 	char variant;
-	int values[HEUR_LOCALBRANCH_VALUES];
+	int num_values;
 	int rounds_nonimprove;
 	int max_rounds;
 	int progress;
+	double values[HEUR_LOCALBRANCH_VALUES];
 } LocalbranchingData;
+
+#define HEUR_MIXHARDSOFT_VALUES 6
+typedef struct
+{
+	char variant;
+	int num_values;
+	int rounds_nonimprove;
+	int max_rounds;
+	int progress;
+	double values[HEUR_MIXHARDSOFT_VALUES];
+} MixHardSoftData;
 
 typedef struct
 {
@@ -160,6 +198,7 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 
 void refine_hardfixing(OptData* optdata, Solution* sol, void* data, double timelim);
 void refine_localbranching(OptData* optdata, Solution* sol, void* data, double timelim);
+void refine_mixhardsoft(OptData* optdata, Solution* sol, void* data, double timelim);
 void refine_2opt(OptData* optdata, Solution* sol, void* data, double timelim);
 
 

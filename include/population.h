@@ -41,6 +41,7 @@ inline Specimen* POP_getchampion(Population* pop) { return pop->champion; }
 // ***************************** POPULATION'S STATISTICS *****************************
 double POP_fitness_avg(Population* pop);
 double POP_fitness_best(Population* pop);
+double POP_entropy(Population* pop);
 
 // ********************************* SPECIMEN CHOICE *********************************
 Specimen* POP_spec_choose_rand(Population* pop); // choose from the entire specimen pool

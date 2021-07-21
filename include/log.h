@@ -11,6 +11,7 @@
 #define LOGLVL_WARN			20
 #define LOGLVL_MSG			40
 #define LOGLVL_PLOTSOL		45
+#define LOGLVL_EXTMSG		47
 #define LOGLVL_INFO			50
 #define LOGLVL_EXTINFO		60
 #define LOGLVL_DEBUG		70

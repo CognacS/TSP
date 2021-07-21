@@ -59,7 +59,7 @@ OptResult TSPopt(Instance* inst)
 	}
 
 	// print LP model if required
-	if (using_cplex(&optdata) && VERBOSITY >= LOGLVL_DEBUG)
+	if (using_cplex(&optdata) && (VERBOSITY >= LOGLVL_DEBUG))
 		CPXwriteprob(optdata.cpx->env, optdata.cpx->lp, "model.lp", NULL);
 
 	// get run execution time
@@ -73,6 +73,8 @@ OptResult TSPopt(Instance* inst)
 	case MODEL_TSP_ASYMM:
 	case MODEL_TSP_SYMM:
 		output_code = OPT_OK;
+		// set performance measure as execution time
+		gd->perf_measure = gd->texec;
 		// IF TIMELIMIT EXPIRED
 		if (time_limit_expired(inst))
 		{
@@ -81,8 +83,6 @@ OptResult TSPopt(Instance* inst)
 			break;
 		}
 		// IF ALL WENT WELL
-		// set performance measure as execution time
-		gd->perf_measure = gd->texec;
 		// extract solution
 		if (gd->xstar != NULL) free_s(gd->xstar);
 		arr_malloc_s(gd->xstar, m->ncols, double);
@@ -90,8 +90,8 @@ OptResult TSPopt(Instance* inst)
 		break;
 	case MODEL_HEURISTICS:
 		output_code = OPT_HEUR_OK;
-		// set performance measure as 
-		gd->perf_measure = gd->texec;
+		// set performance measure as the final cost
+		gd->perf_measure = gd->zbest;
 		// no need to extract solution -> it is already provided by the heuristic
 		break;
 	}

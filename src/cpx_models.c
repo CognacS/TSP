@@ -119,28 +119,33 @@ int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, voi
 		if (cb_inst->rej_procedure)
 			rejected = cb_inst->rej_procedure(context, NULL, inst, cb_inst->args, xstar, CUT_CALLBACK_REJECT, 0, -1);
 		else
-			print_error(ERR_CB_UNDEF_PROCEDURE, "candidate");
-		// if the integer solution is feasable, then crossings should have been eliminated
+			print_error(ERR_CB_UNDEF_PROCEDURE, "candidate");/*
+		// if the integer solution is feasable, then crossings should be eliminated
 		if (!rejected)
 		{
 			int* succ = NULL;	arr_malloc_s(succ, g->nnodes, int);
-			xstar2succ(xstar, succ, g->nnodes);
+			int feasable1 = xstar2succ(xstar, succ, g->nnodes);
 			// if there are no subtours, improve the current integer solution
 			// by removing crossings
 			double delta_sum = remove_crossings(succ, g);
 			double new_objval = objval + delta_sum;
 			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Improved feasable integer solution by %f%%", (objval / new_objval - 1) * 100);
 			// convert back to xstar
-			succ2xstar(succ, xstar, g->nnodes);
+			int feasable2 = succ2xstar(succ, xstar, g->nnodes);
+			log_line_ext(VERBOSITY, LOGLVL_DEBUG, "Solution is feasable: before=%d, after=%d, with objval: %f->%f", feasable1, feasable2, objval, new_objval);
 			// add new improved solution to cplex
-			int error;
-			int* ind = NULL;	arr_malloc_s(ind, inst->inst_model.ncols, int);
-			for (int i = 0; i < inst->inst_model.ncols; i++) ind[i] = i;
-			if (error = CPXcallbackpostheursoln(context, inst->inst_model.ncols, ind, xstar, new_objval, CPXCALLBACKSOLUTION_NOCHECK))
-				print_error_ext(ERR_CPLEX, "CPXcallbackpostheursoln error: %d", error);
+			if (objval > new_objval)
+			{
+				int error;
+				int* ind = NULL;	arr_malloc_s(ind, inst->inst_model.ncols, int);
+				for (int i = 0; i < inst->inst_model.ncols; i++) ind[i] = i;
+				if (error = CPXcallbackpostheursoln(context, inst->inst_model.ncols, ind, xstar, new_objval, CPXCALLBACKSOLUTION_NOCHECK))
+					print_error_ext(ERR_CPLEX, "CPXcallbackpostheursoln error: %d", error);
+				free(ind);
+			}
 			free(succ);
-			free(ind);
-		}
+			
+		}*/
 		// CLEANUP
 		free(xstar);
 		break;
@@ -572,6 +577,7 @@ void solve_symmetric_tsp(OptData* optdata)
 	if (model_tsptype(mt) != MODEL_TSP_SYMM)
 		print_error(ERR_WRONG_TSP_PROCEDURE, NULL);
 
+	cpx_timelimit(optdata, inst->inst_params.timelimit);
 	// build symmetric TSP model OR use symmetric TSP procedure
 	switch (model_archetype(mt))
 	{
@@ -937,7 +943,7 @@ void solve_asymmetric_tsp(OptData* optdata)
 
 	// add SEC on pairs if needed
 	if (need_sec(mt)) add_sec2_asymmetric(optdata);
-
+	cpx_timelimit(optdata, inst->inst_params.timelimit);
 	// solve the model
 	int error = 0;
 	if (error = CPXmipopt(env, lp))

@@ -11,7 +11,7 @@ void exec_2opt_c(int* chromo, int i, int j);
 double move_2opt(int* succ, Graph* g, TabuList* tabu, char allow_worsening);
 double move_2opt_c(int* chromo, Graph* g);
 double remove_crossings(int* succ, Graph* g);
-double remove_crossings_c(int* succ, Graph* g);
+double remove_crossings_c(int* succ, Graph* g, int howmuch);
 
 void randflip_2opt(int* succ, int nnodes);
 void mutation_rms(int* chromo, int nnodes);
