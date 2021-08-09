@@ -119,9 +119,10 @@ int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, voi
 		if (cb_inst->rej_procedure)
 			rejected = cb_inst->rej_procedure(context, NULL, inst, cb_inst->args, xstar, CUT_CALLBACK_REJECT, 0, -1);
 		else
-			print_error(ERR_CB_UNDEF_PROCEDURE, "candidate");/*
+			print_error(ERR_CB_UNDEF_PROCEDURE, "candidate");
+		// IF NOT USING HEURISTICS IN ILP, SKIP THIS SECTION
 		// if the integer solution is feasable, then crossings should be eliminated
-		if (!rejected)
+		if (inst->inst_params.heuristic_ilp && !rejected)
 		{
 			int* succ = NULL;	arr_malloc_s(succ, g->nnodes, int);
 			int feasable1 = xstar2succ(xstar, succ, g->nnodes);
@@ -145,7 +146,8 @@ int CPXPUBLIC sec_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, voi
 			}
 			free(succ);
 			
-		}*/
+		}
+		// END OF HEURISTIC SECTION
 		// CLEANUP
 		free(xstar);
 		break;
@@ -619,8 +621,10 @@ void build_model_base_directed(OptData* optdata)
 	// add binary var.s x(i,j) for all i=/=j
 	for (int i = 0; i < g->nnodes; i++)
 	{
-		for (int j = i + 1; j < g->nnodes; j++)
+		for (int j = 0; j < g->nnodes; j++)
 		{
+			if (i == j) continue;
+
 			// define cost
 			double obj = dist(g, i, j); // cost == distance
 
@@ -632,15 +636,6 @@ void build_model_base_directed(OptData* optdata)
 				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
 			// check correctness of xxpos
 			if (CPXgetnumcols(env, lp) - 1 != xxpos(i, j, g->nnodes))
-				print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"xxpos\"");
-			// 2 - define x(j,i)
-			// define name of variable
-			sprintf(name, "x(%d,%d)", j + 1, i + 1);
-			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &ptr_name))
-				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
-			// check correctness of xxpos
-			if (CPXgetnumcols(env, lp) - 1 != xxpos(j, i, g->nnodes))
 				print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"xxpos\"");
 		}
 	}
@@ -780,16 +775,44 @@ void build_model_gg(OptData* optdata)
 	char* ptr_name = name;
 
 	// ************************ ADD COLUMNS (VARIABLES) ************************
-	// add integer var.s 0<=y(i, j)<=n-2 for all i=/=j (0<=y(i, 1)<=0)
-	for (int i = 0; i < g->nnodes; i++)
+	// add integer var.s 0<=y(0, j)<=n-1 for all j=/=0
+	double lb = 0.0;
+	double ub = g->nnodes - 1;
+	for (int j = 1; j < g->nnodes; j++)
 	{
-		for (int j = i + 1; j < g->nnodes; j++)
-		{
-			// define bounds of integer values
-			double lb = 0.0;
-			double ub = g->nnodes - 1.0;
+		// define name of variable
+		sprintf(name, "y(%d,%d)", 1, j + 1);
+		// add variable in CPX
+		if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_name))
+			print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
+		// check correctness of ypos
+		if (CPXgetnumcols(env, lp) - 1 != ypos(0, j, g->nnodes))
+			print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"ypos\"");
+	}
+	// add integer var.s 0<=y(i, 0)<=0.0 for all i=/=0
+	lb = 0.0;
+	ub = 0.0;
+	for (int i = 1; i < g->nnodes; i++)
+	{
+		// define name of variable
+		sprintf(name, "y(%d,%d)", i + 1, 1);
+		// add variable in CPX
+		if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_name))
+			print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
+		// check correctness of ypos
+		if (CPXgetnumcols(env, lp) - 1 != ypos(i, 0, g->nnodes))
+			print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"ypos\"");
+	}
 
-			// 1 - define y(i,j)
+	// add integer var.s 0<=y(i, j)<=n-2 for all i=/=j, i,j=/=0
+	lb = 0.0;
+	ub = g->nnodes - 2.0;
+	for (int i = 1; i < g->nnodes; i++)
+	{
+		for (int j = 1; j < g->nnodes; j++)
+		{
+			if (i == j) continue;
+			// 1 - define 0<=y(i,j)<=n-2 for all i,j in V\{1}
 			// define name of variable
 			sprintf(name, "y(%d,%d)", i + 1, j + 1);
 			// add variable in CPX
@@ -799,16 +822,6 @@ void build_model_gg(OptData* optdata)
 			if (CPXgetnumcols(env, lp) - 1 != ypos(i, j, g->nnodes))
 				print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"ypos\"");
 
-			// 2 - define y(j,i)
-			if (i == 0) ub = 0;
-			// define name of variable
-			sprintf(name, "y(%d,%d)", j + 1, i + 1);
-			// add variable in CPX
-			if (CPXnewcols(env, lp, 1, NULL, &lb, &ub, &integer, &ptr_name))
-				print_error(ERR_CPLEX, "wrong CPXnewcols on x var.s");
-			// check correctness of xxpos
-			if (CPXgetnumcols(env, lp) - 1 != ypos(j, i, g->nnodes))
-				print_error(ERR_INCORRECT_FUNCTION_IMPL, "wrong position for x var.s using function \"ypos\"");
 		}
 	}
 

@@ -14,7 +14,7 @@ double remove_crossings(int* succ, Graph* g);
 double remove_crossings_c(int* succ, Graph* g, int howmuch);
 
 void randflip_2opt(int* succ, int nnodes);
-void mutation_rms(int* chromo, int nnodes);
+void mutation_rsm(int* chromo, int nnodes);
 void mutation_swap(int* chromo, int nnodes);
 
 void crossover_aex(int* parent1, int* parent2, int* child, int nnodes);

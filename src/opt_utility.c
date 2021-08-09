@@ -191,7 +191,7 @@ void randflip_2opt(int* succ, int nnodes)
 	exec_2opt(succ, node1, node2);
 }
 
-void mutation_rms(int* chromo, int nnodes)
+void mutation_rsm(int* chromo, int nnodes)
 {
 	// select indices (nodes in sequence)
 	int idx1 = rand_int(nnodes);
@@ -440,7 +440,7 @@ void new_generation(Population* pop, void (*crossover)(int*, int*, int*, int),
 
 		// mutate
 		if (random() < mutation_p)
-			mutation_rms(child->chromo, pop->nnodes);
+			mutation_rsm(child->chromo, pop->nnodes);
 
 		if (random() < 0.001)
 		{

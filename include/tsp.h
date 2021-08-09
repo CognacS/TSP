@@ -18,7 +18,8 @@
 #define DEF_INPUT_FILE ""
 #define DEF_BATCH_FILE ""
 #define DEF_MAX_NODES -1
-#define DEF_CUTOFF 1e-3
+#define DEF_CUTOFF 0.0
+#define DEF_HEURILP 0
 
 // tree of implemented models
 #define MODEL_TSP_ASYMM 1
@@ -104,6 +105,7 @@ typedef struct {
 	int max_nodes; 							// max n. of branching nodes in the final run (-1 unlimited)
 	double cutoff; 							// cutoff (upper bound) for master
 	char heuristic_code[200];				// code containing heuristic method information
+	char heuristic_ilp;						// use heuristic boost in ILP methods
 
 } Params;
 

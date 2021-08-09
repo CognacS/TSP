@@ -194,7 +194,16 @@ void decode_heuristic(OptData* optdata, Heuristic* heur)
 	heur->refine_timelimit = atof(decomp_code.params[s][1]);
 	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "refine_time: %f", heur->refine_timelimit);
 
-	if (m == 'i')			// iterative local search
+	if (m == 'c')				// just construct
+	{
+		heur->backbone_heur = backbone_just_construct;
+
+		// assign data
+		heur->backbone_data = NULL;
+		heur->backbone_sol_format = SOLFORMAT_XSTAR | SOLFORMAT_SUCC;
+		heur->to_timelimit = 0;
+	}
+	else if (m == 'i')			// iterative local search
 	{
 		heur->backbone_heur = backbone_iter_local_search;
 
@@ -561,7 +570,7 @@ char extramileage_move(Solution* sol, Graph* g, SetOfNodes* ext_nodes, GraspData
 *			- graph with N nodes
 *			- select randomly k<=N nodes: n1, n2,... nk
 *			- pick their respective succ: s1, s2,... sk
-*			- shift all succ such that succ[ni] = s_{(i+1) mod N}
+*			- shift all succ such that succ[ni] = s_{(k+i-2) mod k}
 ************************************************************************************************** */
 void kopt_kick(Solution* sol, Graph* g, int k)
 {
@@ -614,6 +623,9 @@ void kopt_kick(Solution* sol, Graph* g, int k)
 			node, sol->succ[node], node, succ_nodes[(k + i - 2) % k]);
 
 		cost_add -= dist(g, node, sol->succ[node]);
+		// here the module is taken according to C modules!
+		// (bad behaviour for negative operands, need to be positive
+		// by summing k beforehand)
 		sol->succ[node] = succ_nodes[(k + i - 2) % k];
 		cost_add += dist(g, node, sol->succ[node]);
 	}
@@ -623,6 +635,53 @@ void kopt_kick(Solution* sol, Graph* g, int k)
 
 	free(succ_nodes);
 	SETN_free(chosen_nodes);
+}
+
+/* **************************************************************************************************
+*					BACKBONE METHOD: JUST CONSTRUCT
+*			- construct a starting solution
+*			- return it without refinement
+************************************************************************************************** */
+void backbone_just_construct(OptData* optdata, Solution* sol, Heuristic* heur, void* data)
+{
+	// ******************************** SETUP ********************************
+	// unpack
+	Instance* inst = optdata->inst;
+
+	// startup solution and format it for construction
+	create_solution(sol, heur->construct_sol_format, inst->inst_graph.nnodes);
+
+	// ************************* CONSTRUCT STARTING SOLUTION *************************
+	double timelimit, time_passed = 0, time_phase, t_start;
+	// compute timelimit for constructive heuristic
+	timelimit = min(residual_time(inst), heur->construct_timelimit);
+	log_line(VERBOSITY, LOGLVL_INFO, "************ STARTING CONSTRUCTION PHASE ************");
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Construction should run for %f sec.s", timelimit);
+
+	// construct starting heuristic solution
+	t_start = second();
+	// *********** CONSTRUCT ***********
+	heur->construct_heur(optdata, sol, heur->construct_data, timelimit);
+	if (time_limit_expired(inst))
+	{
+		log_line(VERBOSITY, LOGLVL_WARN, "[WARN] Could not construct a starting solution, returning without a result");
+		sol->cost = INFINITY;
+		return;
+	}
+	// *********************************
+	time_phase = second() - t_start;
+	time_passed += time_phase;
+
+	// log
+	log_line_ext(VERBOSITY, LOGLVL_DEBUG, "[DEBUG] Construction done in %f sec.s", time_phase);
+	log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO]: Obj value after construction = %f", sol->cost);
+	if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, sol->cost);
+	if (VERBOSITY >= LOGLVL_DEBUGPLOT) plot_tsp_solution_undirected(&inst->inst_graph, sol);
+
+	// ****************************** START ITERATIONS *******************************
+	// convert solution to the refinement format
+	if (!convert_solution(sol, heur->refine_sol_format)) print_error(ERR_HEUR_INFEASABLE_SOL, NULL);
+
 }
 
 /* **************************************************************************************************
@@ -942,11 +1001,9 @@ void backbone_tabu_search(OptData* optdata, Solution* sol, Heuristic* heur, void
 		}
 		else if ((epoch + 1) % tenure_update_time == 0)
 		{
-			if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, (double)tabu->tenure * 10);
 			int newtenure = min(bbdata->max_tenure, max(bbdata->min_tenure, tabu->tenure + tenure_change));
 			TABU_set_tenure(tabu, newtenure);
 			log_line_ext(VERBOSITY, LOGLVL_INFO, "[INFO] Tenure set to: %d", tabu->tenure);
-			if (VERBOSITY >= LOGLVL_PLOTSOL) LL_add_value(optdata->perflog[0], time_passed, (double)tabu->tenure * 10);
 		}
 		
 	}
@@ -1141,20 +1198,22 @@ void construct_greedy(OptData* optdata, Solution* sol, void* data, double timeli
 	IndexedValue* candpool = NULL;	arr_malloc_s(candpool, candpool_size, IndexedValue);
 	IndexedValue cand_chosen;
 	double h_dist;
-	int curr;
+	int curr = 0;
 	// for every start point (or until time expires if using GRASP)
-	for (int start = 0; start < g->nnodes || p_dev > 0; start++)
+	for (int start = 0; (start < g->nnodes) || (p_dev > 0.0); start++)
 	{
 		// restart start if needed
 		start %= g->nnodes;
+
 		// select curr
 		curr = start;
+
 		// reset visited nodes
 		for (int i = 0; i < g->nnodes; i++) visited[i] = 0;
 		// clear solution
 		erase_solution(curr_sol);
 
-		// for every nodes in the path
+		// for every node in the path
 		for (int n = 0; n < g->nnodes-1; n++)
 		{
 			// set current as visited
@@ -1167,7 +1226,7 @@ void construct_greedy(OptData* optdata, Solution* sol, void* data, double timeli
 			for (int h = 0; h < g->nnodes; h++)
 			{
 				// if not visited and is eligible to be a candidate
-				if (!visited[h] && OIA_eligible(candpool, (h_dist = dist(g, curr, h))))
+				if (!(visited[h]) && OIA_eligible(candpool, (h_dist = dist(g, curr, h))))
 				{
 					// insert h in the pool of candidates
 					OIA_insert(candpool, candpool_size, OIA_pack1(h, h_dist));
@@ -1264,11 +1323,12 @@ void construct_extramileage(OptData* optdata, Solution* sol, void* data, double 
 		build_convex_hull(g, starting_sol);
 		break;
 	case 'r':	// random
-		a = (int)(random() * g->nnodes);
-		b = (int)(random() * g->nnodes);
+		a = rand_int(g->nnodes);
+		b = rand_int(g->nnodes);
 		if (a == b) b = (b + 1) % g->nnodes;
 		ab_dist = dist(g, a, b);
 		add_edge_solution(starting_sol, a, b, ab_dist);
+		add_edge_solution(starting_sol, b, a, ab_dist);
 		starting_sol->handle_node = a;
 		break;
 	case 'f':	// furthest
@@ -1710,7 +1770,7 @@ void refine_2opt(OptData* optdata, Solution* sol, void* data, double timelim)
 		// change cost
 		sol->cost += delta;
 
-		if (using_tabu(tabu) && !(delta >= 0 && !rfn_data->allow_worsening)) TABU_advance(tabu);
+		if (using_tabu(tabu) && (delta < 0 || rfn_data->allow_worsening)) TABU_advance(tabu);
 
 		// allow 1 worsening movement if it was already allowed
 		if (delta > 0)

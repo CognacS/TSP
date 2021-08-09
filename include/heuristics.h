@@ -27,6 +27,7 @@ typedef struct
 * Decompose heuristic strings using the following structure:
 * B(...,...)C(...,...)R(...,...)
 * ##### B = BACKBONE HEURISTICS #####
+* - just construct:					c(construct_timelim,refine_timelim)
 * - iterative local search:			i(construct_timelim,refine_timelim)
 * - variable neighborhood search:	v(//,//,maxkick_k)
 * - tabu search:					t(//,//,min_tenure,max_tenure,period,intermediate_levels)
@@ -179,6 +180,7 @@ void solve_heuristically(OptData* optdata);
 * solve problem by constructing a starting solution, and refine it iteratively until
 * the time limit is hit
 */
+void backbone_just_construct(OptData* optdata, Solution* sol, Heuristic* heur, void* data);
 void backbone_iter_local_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data);
 void backbone_var_neighborhood_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data);
 void backbone_tabu_search(OptData* optdata, Solution* sol, Heuristic* heur, void* data);

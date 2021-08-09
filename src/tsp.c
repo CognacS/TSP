@@ -14,7 +14,8 @@ void print_params(Params* inst_p)
 		"\trandomseed = %d\n"
 		"\tcutoff = %f\n"
 		"\tmax_nodes = %d\n"
-		"\theuristic_code = %s\n",
+		"\theuristic_code = %s\n"
+		"\theuristic_ilp = %d\n",
 		inst_p->model_type,
 		inst_p->timelimit,
 		inst_p->input_file,
@@ -22,7 +23,8 @@ void print_params(Params* inst_p)
 		inst_p->randomseed,
 		inst_p->cutoff,
 		inst_p->max_nodes,
-		inst_p->heuristic_code
+		inst_p->heuristic_code,
+		inst_p->heuristic_ilp
 	);
 }
 
@@ -79,6 +81,8 @@ void fill_inst_default(Instance* inst)
 	p->timelimit = DEF_TIMELIMIT;
 	p->randomseed = DEF_RANDOMSEED;
 	p->max_nodes = DEF_MAX_NODES;
+	p->cutoff = DEF_CUTOFF;
+	p->heuristic_ilp = DEF_HEURILP;
 
 	gd->xstar = NULL;
 

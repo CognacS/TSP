@@ -56,6 +56,10 @@ void parse_command_line(int argc, char** argv, Instance* inst)
 		{
 			strcpy(p->heuristic_code, heur_code);
 		}
+		tokencase("-ilpheur|-heurilp")
+		{
+			p->heuristic_ilp = 1;
+		}
 		tokenfinally(arg)
 		{
 			print_error(ERR_CLINE_ARG_UNDEF, arg);
@@ -66,17 +70,18 @@ void parse_command_line(int argc, char** argv, Instance* inst)
 
 	if (help)
 	{
-		printf("## HELP TSP SOLVER 07/04/2021 ##\n");
-		printf(" -help      \tCall help utility                                 \tSynonims: --help\n");
-		printf(" -model     \tModel type to indentify the optimization procedure\tSynonims: -model_type\n");
-		printf(" -time_limit\tTime limit for running the optimization process   \n");
-		printf(" -file      \tInput instance file name                          \tSynonims: -input, -input_file -f\n");
-		printf(" -int       \tSet integer costs for the model                   \n");
-		printf(" -seed      \tRandom Seed for CPX RNG                           \n");
-		printf(" -max_nodes \tMaximum number of branching nodes in the final run\n");
-		printf(" -cutoff    \tCutoff (upper bound) for master                   \n");
-		printf(" -batch     \tBatch file name for instance automatization       \tSynonims: -batch_file -bf\n");
-
+		printf("## HELP TSP SOLVER 06/08/2021 ##\n");
+		printf(" -help          \tCall help utility                                 \tSynonims: --help\n");
+		printf(" -model <XYZ>   \tModel type to indentify the optimization procedure\tSynonims: -model_type\n");
+		printf(" -time_limit <f>\tTime limit for running the optimization process   \n");
+		printf(" -file <str>    \tInput instance file name                          \tSynonims: -input, -input_file -f\n");
+		printf(" -int           \tSet integer costs for the model                   \n");
+		printf(" -seed <i>      \tRandom Seed for CPX RNG                           \n");
+		printf(" -max_nodes <i> \tMaximum number of branching nodes in the final run\n");
+		printf(" -cutoff <f>    \tCutoff (upper bound) for master                   \n");
+		printf(" -batch <str>   \tBatch file name for instance automatization       \tSynonims: -batch_file -bf\n");
+		printf(" -heur <str>    \tDefine parameters for heuristics (model=300)      \tSynonims: -heuristic, -heuristics\n");
+		printf(" -ilpheur       \tEnable heuristic methods in ILP solvers           \tSynonims: -heurilp\n");
 
 		exit(1);
 

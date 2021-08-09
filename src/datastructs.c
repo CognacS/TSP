@@ -195,7 +195,7 @@ IndexedValue OIA_choose(IndexedValue* oiarr, int size, char includebest)
 {
 	// compute max size (max index + 1)
 	int max_size = includebest ? size : size - 1;
-	// compute min index (avoid unasigned elements)
+	// compute min index (avoid unassigned elements)
 	int min_idx;
 	for (min_idx = 0; min_idx < size && oiarr[min_idx].index.arr[0] == -1; min_idx++);
 	// choose random index

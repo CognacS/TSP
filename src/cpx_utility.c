@@ -12,8 +12,14 @@ int ypos(int i, int j, int nnodes)
 {
 	// if indices are equal throw error
 	if (i == j) print_error(ERR_INVALID_FUNC_ARGS, "got equal indices in ypos");
-	// else return ypos
-	return xxpos(i, j, nnodes) + (nnodes - 1) * nnodes;
+	// set starting idx as max xxpos index + 1
+	int base_idx = (nnodes - 1) * nnodes;
+	// if arc from node 1
+	if (i == 0) return base_idx + j - 1;
+	// if arc to node 1
+	else if (j == 0) return base_idx + i + nnodes - 2;
+	// else return xxpos without node 1
+	return base_idx + 2 * nnodes - 2 + xxpos(i - 1, j - 1, nnodes - 1);
 }
 
 /*********************************************************************************************************************************************************/

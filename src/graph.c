@@ -242,8 +242,8 @@ int xxpos(int i, int j, int nnodes)
 	// if indices are equal throw error
 	if (i == j) print_error(ERR_INVALID_FUNC_ARGS, "got equal indices in xxpos");
 	// else return xxpos
-	if (i < j) return 2 * xpos(i, j, nnodes);
-	else return 2 * xpos(j, i, nnodes) + 1;
+	if (i < j) return (nnodes - 1) * i + j - 1;
+	else return (nnodes - 1) * i + j;
 }
 
 /* **************************************************************************************************
